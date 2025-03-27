@@ -1,8 +1,7 @@
 use MyDatabase;
 
 SELECT * from sys.tables
-
-
+				
 
 -- Domain Integrity Constraints
 
@@ -13,7 +12,7 @@ CREATE TABLE Employees(
 	email VARCHAR(100) UNIQUE 
 	);
 
-	INSERT INTO Employees VALUES(1,'utkarsh',2,'utkarsh.sharma@intimetec.com');
+	INSERT INTO Employees VALUES(1,'utkarsh',22,'utkarsh.sharma@intimetec.com');
 
 	SELECT * FROM Employees;
 
@@ -24,7 +23,7 @@ CREATE TABLE Employees(
 
 	INSERT INTO Employees VALUES(1,'utkarsh',22,'utkarsh.sharma@intimetec.com');
 
-	INSERT INTO Employees VALUES(1,'Jainam',22,'jainam.j@intimetec.com');
+	INSERT INTO Employees VALUES(2,'Jainam',22,'jainam.jain@intimetec.com');
 	 
 	 -- It will throw Error as the empId(Primary Key) is same for utkarsh and jainam 
 
@@ -35,7 +34,9 @@ CREATE TABLE Customers (
     Name VARCHAR(50)
 	);
 
-INSERT INTO Customers VALUES (1,'utkarsh'),(2,'Sumit');
+INSERT INTO Customers VALUES (1,'utkarsh'),(2,'Sumit'),(3,'Harsh');
+
+SELECT * FROM Customers
 
 CREATE TABLE Orders (
     OrderID INT PRIMARY KEY,
@@ -46,7 +47,7 @@ CREATE TABLE Orders (
 
 INSERT INTO Orders VALUES (1,1,'2025-03-26');
 SELECT * FROM Orders;
-INSERT INTO Orders VALUES (2,31,'2025-01-01'); -- WILL GIVE ERROR 
+INSERT INTO Orders VALUES (2,3,'2025-01-01'); -- WILL GIVE ERROR 
 
 -- CustomerID is not present in the Customers TABLE
 DROP TABLE Customers;
@@ -62,7 +63,9 @@ CREATE TABLE Users (
 
 INSERT INTO Users (UserID, Email, Username) VALUES (1, 'user1@example.com', 'user1');
 
-INSERT INTO Users (UserID, Email, Username) VALUES (1, 'user2@example.com', 'user1');
+SELECT * FROM Users
+
+INSERT INTO Users (UserID, Email, Username) VALUES (2, 'user2@example.com', 'user2');
 
 DROP TABLE Users;
 
@@ -76,7 +79,7 @@ CREATE TABLE Employees_NotNull (
     Salary DECIMAL(10,2) NOT NULL -- Salary must have a value
 );
 
-INSERT INTO Employees_NotNull (EmployeeID, Name, Salary) VALUES (1, 'Bob', NULL);
+INSERT INTO Employees_NotNull (EmployeeID, Name, Salary) VALUES (1, 'Bob', 12000);
 
 
 -- 6. Check Constraint (Salary Must be Greater than 0)
@@ -86,7 +89,7 @@ CREATE TABLE Products (
     Price DECIMAL(10,2) CHECK (Price > 0) -- Price must be positive
 );
 
-INSERT INTO Products (ProductID, Name, Price) VALUES (1, 'Laptop', -1200);
+INSERT INTO Products (ProductID, Name, Price) VALUES (1, 'Laptop', 1200);
 
 
 

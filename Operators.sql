@@ -5,7 +5,7 @@ SELECT 10 + 5;
 
 SELECT 10 - 5;
 
-SELECT 10 * 5; 
+SELECT 10 * 5;
 
 SELECT 10 / 5;
 
@@ -15,7 +15,7 @@ SELECT 10 % 3;
 
 -- -> 15
 -- -> 5
--- -> 25
+-- -> 50
 -- -> 2
 -- -> 1
 
@@ -82,7 +82,6 @@ SELECT * FROM Employees WHERE Name LIKE 'A%';
 --  IN (Matching a Set of Values)
 
 SELECT * FROM Employees WHERE Department IN ('IT', 'HR');
-
 
 
 
