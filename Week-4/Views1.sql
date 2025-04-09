@@ -28,13 +28,16 @@ SELECT id, region, amount, sale_date FROM dbo.sales;
 
 -- Update amount using the view
 UPDATE dbo.v_sales_basic
-SET amount = 1200
+SET amount = 1300
 WHERE id = 1;
+
+SELECT * FROM dbo.sales;
 
 --Note: This works because:
 --The view is updatable
 --There’s no DISTINCT, JOIN, GROUP BY, UNION, etc.
 --It includes the primary key (id) of the base table
+
 
 DELETE FROM dbo.v_sales_basic
 WHERE id = 3;
@@ -59,7 +62,7 @@ SELECT id, region, amount FROM dbo.sales;
 
 SELECT * FROM v_simple_sales;
 
-SELECT * FROM v_simple_sales WHERE amount > 1000;
+SELECT * FROM v_simple_sales WHERE amount > 1400;
 
 DROP TABLE dbo.sales;
 
@@ -73,7 +76,7 @@ CREATE TABLE customers (
 CREATE TABLE orders (
     order_id INT PRIMARY KEY,
     customer_id INT,
-    FOREIGN KEY (customer_id) REFERENCES dbo.customers(customer_id)
+    FOREIGN KEY (customer_id) REFERENCES dbo.customers(customer_id) ON DELETE CASCADE
 );
 
 INSERT INTO customers VALUES (1, 'Alice');
@@ -82,11 +85,15 @@ INSERT INTO customers VALUES (2, 'Bob');
 INSERT INTO orders VALUES (101, 1);
 INSERT INTO orders VALUES (102, 2);
 
+SELECT * FROM customers;
+SELECT * FROM orders;
+
 
 -- View With WHERE
 CREATE VIEW dbo.v_filtered_sales AS
 SELECT * FROM dbo.sales WHERE amount > 900;
 
+SELECT * FROM v_filtered_sales;
 
 -- View WITH JOIN
 
@@ -106,8 +113,14 @@ SELECT region, AVG(amount) AS avg_sales
 FROM dbo.sales
 GROUP BY region;
 
+SELECT * FROM v_region_avg;
+
 CREATE VIEW dbo.v_top_regions AS
-SELECT * FROM dbo.v_region_avg WHERE avg_sales > 1000;
+SELECT * FROM dbo.v_region_avg WHERE avg_sales > 1400;
+
+SELECT * FROM v_top_regions;
+
+DROP VIEW v_top_regions;
 
 
 -- Modify Base Table, Reflect in View
@@ -128,11 +141,15 @@ CREATE VIEW dbo.v_top_sales AS
 SELECT TOP 100 PERCENT * FROM dbo.sales
 ORDER BY amount DESC;
 
+SELECT * FROM v_top_sales;
+
 
 
 -- SYSTEM VIEW
 
 SELECT name, type_desc FROM sys.views WHERE is_ms_shipped = 0;
+
+SELECT * FROM  sys.system_views;
 
 SELECT * FROM sys.tables;
 
@@ -200,3 +217,8 @@ HAVING COUNT(*) > 0;
 SELECT * FROM sys.tables;
 
 SELECT * FROM sys.objects;
+
+
+DROP TABLE sales
+DROP TABLE customers
+DROP TABLE orders
