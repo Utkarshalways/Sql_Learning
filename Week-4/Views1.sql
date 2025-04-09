@@ -1,5 +1,7 @@
 ﻿CREATE DATABASE ViewPractice
 
+use ViewPractice;
+
 CREATE TABLE dbo.sales (
     id INT PRIMARY KEY,
     region VARCHAR(50),
@@ -135,6 +137,41 @@ SELECT name, type_desc FROM sys.views WHERE is_ms_shipped = 0;
 SELECT * FROM sys.tables;
 
 
+-- PARTITION VIEWS
+
+CREATE VIEW v_all_details AS
+SELECT * FROM customers
+UNION ALL
+SELECT * FROM orders;
+
+
+SELECT * FROM v_all_details;
+
+
+CREATE TABLE orders_2023 (
+    order_id INT,
+    customer_id INT
+);
+GO
+
+CREATE TABLE orders_2024 (
+    order_id INT,
+    customer_id INT
+);
+GO
+
+INSERT INTO orders_2023 VALUES (201, 1);
+INSERT INTO orders_2024 VALUES (301, 2);
+GO
+
+CREATE VIEW v_all_orders AS
+SELECT * FROM orders_2023
+UNION ALL
+SELECT * FROM orders_2024;
+GO
+
+SELECT * FROM v_all_orders;
+GO
 
 
 DROP TABLE customers;
@@ -158,3 +195,8 @@ FROM dbo.orders o
 JOIN dbo.customers c ON o.customer_id = c.customer_id
 GROUP BY c.customer_name
 HAVING COUNT(*) > 0;
+
+
+SELECT * FROM sys.tables;
+
+SELECT * FROM sys.objects;
