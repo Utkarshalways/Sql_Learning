@@ -166,7 +166,7 @@ DROP TABLE IF EXISTS Customers;
 DROP TABLE  Users;
 DROP TABLE  userRole;
 DROP TABLE IF EXISTS brands;
-
+DROP TABLE sysdiagrams;
 
 SELECT * FROM sys.tables;
 use master;
