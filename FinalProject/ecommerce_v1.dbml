@@ -1,0 +1,231 @@
+brands [icon: tag, color: lightblue] { 
+
+   
+
+  id string pk 
+
+  name string unique 
+
+} 
+
+// title 
+
+title E-commerce Platform Database Schema with Normalization Platform Database Schema 
+
+ 
+
+// define tables 
+
+users [icon: user, color: yellow] { 
+
+  id string pk 
+
+  name string 
+
+  email string unique 
+
+  password string 
+
+  address string 
+
+  phone_number string 
+
+  user_role string 
+
+} 
+
+ 
+
+products [icon: box, color: green] { 
+
+  id string pk 
+
+  name string 
+
+  description string 
+
+  category_id string fk 
+
+  price decimal 
+
+  sku string unique 
+
+  brand string 
+
+  discount decimal 
+
+} 
+
+ 
+
+categories [icon: tag, color: blue] { 
+
+  id string pk 
+
+  name string 
+
+  parent_category_id string fk 
+
+} 
+
+ 
+
+orders [icon: shopping-cart, color: orange] { 
+
+  id string pk 
+
+  user_id string fk 
+
+  order_date timestamp 
+
+  order_status string 
+
+  total_amount decimal 
+
+  payment_status string 
+
+} 
+
+ 
+
+order_items [icon: list, color: purple] { 
+
+  id string pk 
+
+  order_id string fk 
+
+  product_id string fk 
+
+  quantity int 
+
+  unit_price decimal 
+
+  total_price decimal 
+
+} 
+
+ 
+
+payments [icon: credit-card, color: teal] { 
+
+  id string pk 
+
+  order_id string fk 
+
+  payment_method string 
+
+  amount decimal 
+
+  payment_date timestamp 
+
+} 
+
+ 
+
+reviews [icon: star, color: pink] { 
+
+  id string pk 
+
+  user_id string fk 
+
+  product_id string fk 
+
+  rating int 
+
+  comment string 
+
+  review_date timestamp 
+
+} 
+
+ 
+
+shipping [icon: truck, color: brown] { 
+
+  id string pk 
+
+  order_id string fk 
+
+  shipping_method string 
+
+  tracking_number string 
+
+  estimated_delivery timestamp 
+
+  status string 
+
+} 
+
+ 
+
+wishlist [icon: heart, color: red] { 
+
+  id string pk 
+
+  user_id string fk 
+
+  product_id string fk 
+
+} 
+
+ 
+
+shopping_cart [icon: shopping-bag, color: gray] { 
+
+  id string pk 
+
+  user_id string fk 
+
+  product_id string fk 
+
+  quantity int 
+
+} 
+
+inventory [icon: clipboard, color: lightgreen] { 
+
+   
+
+  id string pk 
+
+  product_id string fk 
+
+  quantity_in_stock int 
+
+} 
+
+ 
+
+ 
+
+// define relationships 
+
+products.category_id > categories.id 
+
+categories.parent_category_id > categories.id 
+
+orders.user_id > users.id 
+
+order_items.order_id > orders.id 
+
+order_items.product_id > products.id 
+
+payments.order_id > orders.id 
+
+reviews.user_id > users.id 
+
+reviews.product_id > products.id 
+
+shipping.order_id > orders.id 
+
+wishlist.user_id > users.id 
+
+wishlist.product_id > products.id 
+
+shopping_cart.user_id > users.id 
+
+shopping_cart.product_id > products.id 
+
+products.brand > brands.id 
+
+inventory.product_id > products.id 
