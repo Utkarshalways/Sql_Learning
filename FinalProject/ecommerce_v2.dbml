@@ -1,0 +1,134 @@
+TITLE  Ecommerce DATABASE
+users {
+  id string [pk]
+  name string [unique, not null]
+  email string [unique]
+  password varbinary(max)
+  address string
+  phone_number string [unique]
+  gender string
+  DateOfBirth datetime
+  country string
+}
+
+customers {
+  id bigint [pk]
+  userId string [ref: > users.id, unique]
+  paymentDetails string
+  age int
+  address string
+  pinCode int
+}
+
+vendors {
+  id bigint [pk]
+  userId string [ref: > users.id, unique]
+  paymentReceivingDetails string
+  address string
+  pinCode int
+  GSTnumber string [not null]
+}
+
+products {
+  id string [pk]
+  name string
+  description string
+  category_id string [ref: > categories.id]
+  vendor_id bigint [ref: > vendors.id]
+  price decimal
+  stockKeepingUnit string [unique]
+  discount decimal
+}
+
+categories {
+  id string [pk]
+  name string
+  parent_category_id string [ref: > categories.id]
+}
+
+orders {
+  id string [pk]
+  user_id string [ref: > users.id]
+  order_date datetime
+  order_status string
+  total_amount decimal
+  payment_status string
+  created_at datetime
+  updated_at datetime
+}
+
+order_items {
+  id string [pk]
+  order_id string [ref: > orders.id]
+  product_id string [ref: > products.id]
+  quantity int
+  unit_price decimal
+  total_price decimal
+}
+
+payments {
+  id string [pk]
+  order_id string [ref: > orders.id]
+  payment_method string
+  amount decimal
+  payment_date datetime
+  created_at datetime
+  updated_at datetime
+}
+
+reviews {
+  id string [pk]
+  user_id string [ref: > users.id]
+  product_id string [ref: > products.id]
+  rating int
+  comment string
+  review_date datetime
+  created_at datetime
+  updated_at datetime
+}
+
+shipping {
+  id string [pk]
+  order_id string [ref: > orders.id]
+  shipping_method string
+  tracking_number string
+  estimated_delivery datetime
+  status string
+}
+
+wishlist {
+  id string [pk]
+  user_id string [ref: > users.id]
+  product_id string [ref: > products.id]
+}
+
+shopping_cart {
+  id string [pk]
+  user_id string [ref: > users.id]
+  product_id string [ref: > products.id]
+  quantity int
+  created_at datetime
+  updated_at datetime
+}
+
+inventory {
+  id string [pk]
+  product_id string [ref: > products.id]
+  quantity_in_stock int
+}
+
+invoices {
+  id string [pk]
+  order_id string [ref: > orders.id]
+  payment_id string [ref: > payments.id]
+  vendor_id bigint [ref: > vendors.id]
+  invoice_date datetime
+  due_date datetime
+  billing_address string
+  shipping_address string
+  total_amount decimal
+  payment_method string
+  status string
+  created_at datetime
+  updated_at datetime
+}
