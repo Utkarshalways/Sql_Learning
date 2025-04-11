@@ -251,3 +251,28 @@ LAG(Salary, 1) OVER (ORDER BY Salary) AS PrevSalary,
 LEAD(Salary, 1) OVER (ORDER BY Salary) AS NextSalary,
 (Salary - LAG(Salary, 1) OVER (ORDER BY Salary)) AS SalaryDifference
 FROM Employees;
+
+
+
+SELECT * FROM Employees;
+
+SELECT Name,Department,Salary,
+ROW_NUMBER() OVER (PARTITION BY DEPARTMENT ORDER BY Salary desc) as ROWNUM
+FROM Employees;
+
+SELECT Name,Department,Salary,
+LAG(Salary,1) OVER(PARTITION BY Department ORDER BY Salary) AS PreviousEmployeeSalary
+FROM Employees;
+
+SELECT *,
+NTILE(4) OVER (ORDER BY Salary) As DividedSalary
+FROM Employees;
+
+SELECT *,
+CASE 
+WHEN Salary > 60000 THEN 'GOOD'
+WHEN Department = 'IT' THEN 'Okay'
+ELSE 'BAD'
+END
+AS Reviews
+FROM Employees;
