@@ -1,3 +1,24 @@
+-- QUESTION 1
+DECLARE @phoneNumber VARCHAR(15) = '+91-98765-43210'
+SELECT RIGHT(REPLACE(@phoneNumber,'-',''),10);
+
+-- QUESTION 2
+DECLARE @date DATE = '2025-01-03';
+SELECT @date as DATE
+SELECT 
+CASE
+WHEN DATEDIFF(MONTH,@date,GETDATE()) <= 3 THEN 'Less Than 3 months'
+ELSE 'More Than 3 Months'
+END AS 'Difference';
+
+-- QUESTION 3
+
+-- order_id, region, and sales_amount
+SELECT region,order_id,sales_amount,
+RANK() OVER(PARTITION BY region ORDER BY sales_amount desc) 
+from salesRecord;
+
+
 -- QUESTION 4
 DECLARE @name VARCHAR(20) = 'sharma, utkarsh'
 SELECT @name
@@ -5,6 +26,10 @@ SELECT CONCAT(SUBSTRING(@name,CHARINDEX(' ',@name,1),LEN(@name)),' ',SUBSTRING(@
 
 -- QUESTION 5
 
+
+SELECT *,
+((Revenue - LAG(revenue) OVER (PARTITION BY ProductID ORDER BY monthSale))*100)/2 FROM Sales
+ 
 -- QUESTION 6
 DECLARE @invoice1 VARCHAR(10) = '--';
 DECLARE @invoice2 VARCHAR(10) = NULL;
@@ -25,7 +50,11 @@ ELSE TRY_CAST(@invoice3 as int) END AS invoice3
 
 -- QUESTION 7 
 
-
+SELECT id 
+,MIN(timestamp) as firstLogin,
+MAX(timestamp) as lastLogin
+FROM timestampTable
+GROUP BY customer_id
 -- QUESTION 8
 DECLARE @DATE DATE = '2004-01-04';
 SELECT @DATE AS DATE
@@ -33,7 +62,10 @@ SELECT DATEDIFF(YEAR,@DATE,GETDATE()) AS AGE
 
 -- QUESTION 9
 
- 
+DECLARE @Date1 DATE = '12/04/2023'
+DECLARE @Date2 DATE = '2023-04-12'
+SELECT CONVERT(DATE,@Date1,120)
+SELECT CONVERT(DATE,@Date2,120)
 
 -- QUESTION 10
 
