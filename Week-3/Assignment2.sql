@@ -13,7 +13,7 @@ END AS 'Difference';
 
 -- QUESTION 3
 
--- order_id, region, and sales_amount
+-- order_id, region, and sales_amount   
 SELECT region,order_id,sales_amount,
 RANK() OVER(PARTITION BY region ORDER BY sales_amount desc) 
 from salesRecord;
@@ -89,6 +89,10 @@ SELECT MAX(LEN(review_text))
 FROM products
 )
 
+SELECT product_id,review_date,review_text,
+ROW_NUMBER() OVER (ORDER BY LEN(review_text) desc)
+FROM products
+
 
 -- QUESTION 13
 
@@ -106,4 +110,4 @@ END as Result
 
 -- QUESTION 15
 
-SELECT IIF(LOWER('Test@Mail.com') = LOWER('test@mail.com'),'duplicate','NOT duplicate') as DuplicateORNot;
+SELECT IIF(TRIM(LOWER('Test@Mail.com')) = TRIM(LOWER('test@mail.com')),'duplicate','NOT duplicate') as DuplicateORNot;
