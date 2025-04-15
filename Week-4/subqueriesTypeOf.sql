@@ -1,3 +1,5 @@
+DROP TABLE ORDERS
+
 CREATE TABLE Orders (
     OrderID INT PRIMARY KEY,
     CustomerName VARCHAR(100),
@@ -23,12 +25,11 @@ select * from orders
 
 --Find the customer who placed the highest order:
 
-SELECT *
-FROM Orders
+SELECT CustomerName 
+FROM Orders 
 WHERE OrderAmount = (
-    SELECT MAX(OrderAmount)
-    FROM Orders
-);
+ SELECT MAX(OrderAmount) FROM Orders
+)
 
 -- Find customers whose order amount is equal to the second highest order placed.
 
@@ -43,7 +44,6 @@ WHERE OrderAmount = (
     )
 );
 
---Task After PPT : Find Optimal Answer to this approach
 
 --2. Multi-Row Subquery
 --Definition:
@@ -53,7 +53,7 @@ WHERE OrderAmount = (
 
 SELECT *
 FROM Orders
-WHERE City ANY (
+WHERE City IN (
     SELECT DISTINCT City
     FROM Orders
     WHERE OrderAmount > 100

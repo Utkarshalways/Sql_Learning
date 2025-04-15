@@ -1,10 +1,13 @@
 use ViewPractice;
 
 SELECT * FROM sys.tables;
-
 SELECT * FROM customers;
 SELECT * FROM orders;
 SELECT * FROM sales;
+
+DROP TABLE customers
+DROP TABLE orders
+DROP TABLE sales
 
 SELECT c.customer_name
 FROM customers as c
