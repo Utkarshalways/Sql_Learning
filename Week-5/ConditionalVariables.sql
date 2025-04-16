@@ -42,13 +42,10 @@ PRINT 'Scanning your cart items...';
 WHILE @ItemCounter <= @MaxItems
 BEGIN
     PRINT 'Scanned item #' + CAST(@ItemCounter AS NVARCHAR);
-    SET @ItemCounter = @ItemCounter + 1;
 END
 
 PRINT 'All items scanned. Proceed to payment.';
 
--- 💬 Question: How can we use loops to handle batch processing in billing?
-GO
 
 
 -- ==============================================
@@ -65,7 +62,7 @@ BEGIN
     BEGIN
         PRINT '❌ Item #' + CAST(@CurrentItem AS NVARCHAR) + ' is out of stock. Skipping.';
         SET @CurrentItem = @CurrentItem + 1;
-        CONTINUE;
+		BREAK
     END
 
     PRINT '📦 Item #' + CAST(@CurrentItem AS NVARCHAR) + ' is in stock.';
@@ -96,12 +93,11 @@ ELSE
 
 PRINT 'Discount applied: ' + CAST(@Discount AS VARCHAR) + '%';
 
--- ❓ Question: What will be the discount if the quantity is 7?
 
 
 
 -- 🛍 Scenario: E-commerce platform categorizes items
-DECLARE @Price DECIMAL(10,2) = 1199.00;
+DECLARE @Price FLOAT = 1199.00;
 DECLARE @Category NVARCHAR(50);
 
 SET @Category =
@@ -164,9 +160,6 @@ ELSE
 
 PRINT '🎁 Reward Points Earned: ' + CAST(@Points AS VARCHAR);
 
--- ❓ Question: What will be the final reward points if total spent is ₹3500?
--- (Hint: Pay attention to nested IFs and reassignment.)
-
 
 
 -- 💳 Insurance billing codes processing
@@ -185,8 +178,7 @@ BEGIN
     SET @Code = @Code + 1;
 END
 
--- ❓ Question: What will be printed for each value from 1 to 4?
--- Will '❓ Unknown Code' appear?
+
 
 
 
@@ -198,16 +190,15 @@ BEGIN
     IF @UserID = 3
     BEGIN
         SET @UserID = @UserID + 1;
-        CONTINUE;
+        BREAK;
     END
     PRINT '🔔 Sent notification to user ' + CAST(@UserID AS VARCHAR);
     SET @UserID = @UserID + 1;
 END
 
--- ❓ Question: Will notification be sent to user 3? How many total messages will be printed?
 
 
--- 🚗 Speed Monitoring for Safe Driving
+-- Speed Monitoring for Safe Driving
 DECLARE @Speed INT = 85;
 DECLARE @Message NVARCHAR(100);
 
@@ -219,7 +210,23 @@ SET @Message =
         ELSE 'Overspeeding! Penalty applies.'
     END;
 
-PRINT '🚦 Status: ' + @Message;
+PRINT 'Status: ' + @Message;
 
--- ❓ Question: Will it show "Safe Driving" or "Caution" for speed 85?
--- (Watch those ranges closely!)
+
+
+
+DECLARE @original NVARCHAR(100) = 'T-SQL is powerful';
+DECLARE @reversed NVARCHAR(100) = '';
+DECLARE @len INT = LEN(@original);
+
+WHILE @len > 0
+BEGIN
+    SET @reversed += SUBSTRING(@original, @len, 1);
+    SET @len -= 1;
+END
+
+PRINT '🔁 Reversed String: ' + @reversed;
+
+DECLARE @a INT = 4;
+DECLARE @b VARCHAR = '4';
+SELECT @a < @b
