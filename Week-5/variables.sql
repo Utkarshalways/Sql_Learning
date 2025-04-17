@@ -26,9 +26,9 @@ SET @ProductName = 'Laptop'
 SELECT @ProductName as productName;
 
 
+SET @date = 'something'
 DECLARE @date DATE;
 SET @date = GETDATE();
-SET @date = 'something'
 SELECT @date as [DATE];
 
 
@@ -97,7 +97,7 @@ VALUES
 DROP TABLE Orders;
 
 CREATE PROCEDURE GetCustomerOrders​
-  @CustomerId INT​
+  @CustomerId INT​ = NULL
 AS​
 BEGIN​
   SELECT * FROM Orders WHERE CustomerID = @CustomerId;​
@@ -105,7 +105,7 @@ END;
 
 
 
-EXEC GetCustomerOrders @CustomerId = 2;
+EXEC GetCustomerOrders;
 
 
 DROP PROCEDURE GetCustomerOrders
