@@ -109,3 +109,18 @@ INSERT INTO payments (id, order_id, payment_method, amount, payment_date, create
 ('PAY001', 'ORD001', 'UPI', 1499.00, '2025-04-01 10:15:00', GETDATE(), GETDATE()),
 ('PAY002', 'ORD003', 'Credit Card', 1799.00, '2025-04-03 10:00:00', GETDATE(), GETDATE());
 
+
+
+SELECT * FROM sys.tables
+
+SELECT * FROM products;
+SELECT * FROM inventory
+
+SELECT
+
+SELECT * FROM shopping_cart
+
+INSERT INTO shopping_cart(id,user_id,product_id,quantity) VALUES ('CART004','USR001','PROD002',1);
+
+
+SELECT * FROM shopping_cart WHERE user_id = 'USR001';
