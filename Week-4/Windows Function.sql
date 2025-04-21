@@ -98,7 +98,7 @@ FROM Employees;
 --  DENSE_RANK()
 SELECT Name, Department, Salary,
 DENSE_RANK() OVER (ORDER BY Salary DESC) AS DenseRank
-FROM Employees;
+FROM Employxees;
 
 SELECT Name, Department, Salary,
 DENSE_RANK() OVER () AS DenseRank
