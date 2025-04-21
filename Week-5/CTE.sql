@@ -41,3 +41,43 @@ WITH OrgChart AS (
 )
 SELECT * FROM OrgChart
 ORDER BY level, manager_id;
+
+
+-- CTE is the common Table Expression and it is a temporary named result set which contains the SELECT, UPDATE, DELETE, INSERT Queries.
+
+-- It Makes complex Queries more readable and allows for recursive operations
+
+SELECT * FROM Employees;
+
+WITH topSalary AS (
+
+	SELECT TOP 1 * FROM Employees
+	ORDER BY salary desc
+
+)
+
+SELECT * FROM topSalary
+
+-- WHY to use CTE?
+
+-- improve readability and maintainability 
+-- helps in breaking down complex queries
+-- allow for recursion 
+-- can be reused multiple times in the main query 
+
+WITH employeeEarningMorethan5000 AS (
+	SELECT * FROM Employees
+	WHERE salary > 50000
+)
+SELECT * FROM employeeEarningMorethan5000
+
+
+With CountEmployeesPerManager AS (
+SELECT manager_id, COUNT(*) as empCount 
+FROM Employees
+WHERE manager_id is NOT NULL
+GROUP BY manager_id
+)SELECT * FROM CountEmployeesPerManager
+
+
+
