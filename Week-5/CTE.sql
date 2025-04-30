@@ -9,6 +9,8 @@ CREATE TABLE Employees (
 );
 
 
+SELECT * FROM Employees
+
 INSERT INTO Employees (id, name, salary, manager_id) VALUES
 (1, 'Raj', 70000, NULL),
 (2, 'Simran', 65000, 1),
@@ -19,7 +21,7 @@ INSERT INTO Employees (id, name, salary, manager_id) VALUES
 
 
 WITH HighSalaryEmployees AS (
-    SELECT name, salary
+    SELECT Name, salary
     FROM Employees
     WHERE salary > 50000
 )
@@ -28,7 +30,7 @@ SELECT * FROM HighSalaryEmployees;
 
 WITH OrgChart AS (
    
-    SELECT id, name, manager_id, 0 AS level
+    SELECT id, Name, manager_id, 0 AS level
     FROM Employees
     WHERE manager_id IS NULL
 
@@ -59,7 +61,6 @@ WITH topSalary AS (
 SELECT * FROM topSalary
 
 -- WHY to use CTE?
-
 -- improve readability and maintainability 
 -- helps in breaking down complex queries
 -- allow for recursion 
@@ -81,3 +82,19 @@ GROUP BY manager_id
 
 
 
+
+With allEmployeeswithaANDs AS (
+	
+	SELECT Name,salary FROM Employees
+	WHERE name LIKE 's%'
+)
+SELECT * FROM allEmployeeswithaANDs
+
+
+With avgSalaryEmp AS ( 
+	
+	SELECT Name 
+	FROM Employees
+	WHERE salary > (SELECT AVG(salary) FROM Employees) 
+)
+SELECT * FROM avgSalaryEmp
