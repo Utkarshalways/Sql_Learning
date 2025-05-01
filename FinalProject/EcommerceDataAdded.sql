@@ -124,3 +124,100 @@ INSERT INTO shopping_cart(id,user_id,product_id,quantity) VALUES ('CART004','USR
 
 
 SELECT * FROM shopping_cart WHERE user_id = 'USR001';
+
+
+
+INSERT INTO users (id, name, email, password, address, phone_number, gender, DateOfBirth, country, user_type) VALUES
+('USR011', 'Deepak Rana', 'deepak.rana@example.com', HASHBYTES('SHA2_256', CONVERT(VARBINARY, 'deepak123')), '22 Rajpur Road, Dehradun', '9001112233', 'Male', '1992-03-10', 'India', 'customer'),
+('USR012', 'Meera Iyer', 'meera.iyer@example.com', HASHBYTES('SHA2_256', CONVERT(VARBINARY, 'meera123')), '14 T Nagar, Chennai', '9877123456', 'Female', '1990-11-22', 'India', 'vendor'),
+('USR013', 'Farhan Qureshi', 'farhan.qureshi@example.com', HASHBYTES('SHA2_256', CONVERT(VARBINARY, 'farhan123')), '78 Lalbagh, Lucknow', '9234567890', 'Male', '1986-07-18', 'India', 'vendor'),
+('USR014', 'Simran Kaur', 'simran.kaur@example.com', HASHBYTES('SHA2_256', CONVERT(VARBINARY, 'simran123')), '89 Sector 22, Chandigarh', '9800001234', 'Female', '1995-05-12', 'India', 'customer'),
+('USR015', 'Rohan Malhotra', 'rohan.malhotra@example.com', HASHBYTES('SHA2_256', CONVERT(VARBINARY, 'rohan123')), '3 Camac Street, Kolkata', '9812345670', 'Male', '1988-09-30', 'India', 'vendor');
+
+
+INSERT INTO vendors (id, userId, paymentReceivingDetails, address, pinCode, GSTnumber) VALUES
+(105, 'USR012', 'BOI UPI: meera@boi', '14 T Nagar, Chennai', 600017, '33ABCDE1234F1Z9'),
+(106, 'USR013', 'SBI Acc No: 2233445566', 'Lalbagh, Lucknow', 226001, '09AAACX1234G1ZP'),
+(107, 'USR015', 'HDFC UPI: rohan@hdfc', 'Camac Street, Kolkata', 700016, '19ABCDF4567P1Z8');
+
+
+INSERT INTO customers (id, userId, paymentDetails, age, address, pinCode) VALUES
+(7, 'USR011', 'GPay: deepak@okhdfcbank', 33, '22 Rajpur Road, Dehradun', 248001),
+(8, 'USR014', 'PhonePe: simran@ybl', 29, 'Sector 22, Chandigarh', 160022);
+
+
+INSERT INTO products (
+    id, name, description, category_id, vendor_id, price, stockKeepingUnit, discount
+) VALUES
+('PROD004', 'Fitness Tracker Band', 'Sleep and heart-rate monitoring', 'CAT002', 105, 1299.00, 'SKU004', 7.50),
+('PROD005', 'Over-Ear Headphones', 'Comfortable fit with great sound', 'CAT007', 106, 2499.00, 'SKU005', 12.00),
+('PROD006', 'Mini Bluetooth Speaker', 'Compact design with powerful sound', 'CAT008', 107, 999.00, 'SKU006', 10.00);
+
+
+INSERT INTO inventory (id, product_id, quantity_in_stock) VALUES
+('INV004', 'PROD004', 25),
+('INV005', 'PROD005', 18),
+('INV006', 'PROD006', 40);
+
+
+INSERT INTO orders (id, user_id, order_date, order_status, total_amount, payment_status, created_at, updated_at) VALUES
+('ORD004', 'USR011', '2025-04-04 14:00:00', 'Shipped', 1299.00, 'Paid', GETDATE(), GETDATE()),
+('ORD005', 'USR014', '2025-04-05 17:30:00', 'Processing', 2499.00, 'Pending', GETDATE(), GETDATE());
+
+
+
+INSERT INTO order_items (id, order_id, product_id, quantity, unit_price) VALUES
+('OI004', 'ORD004', 'PROD004', 1, 1299.00),
+('OI005', 'ORD005', 'PROD005', 1, 2499.00);
+
+
+SELECT * FROM users;
+
+INSERT INTO reviews (id, user_id, product_id, rating, comment, review_date)
+VALUES
+('R001', 'USR001', 'PROD001', 5, 'Excellent quality! Totally worth the price.', '2025-04-10'),
+('R002', 'USR002', 'PROD002', 4, 'Good product but delivery was delayed.', '2025-04-11'),
+('R003', 'USR003', 'PROD003', 3, 'Average performance, expected better.', '2025-04-12'),
+('R004', 'USR004', 'PROD004', 2, 'Stopped working after a week. Disappointed.', '2025-04-13'),
+('R005', 'USR005', 'PROD005', 5, 'Super fast and sleek. Highly recommend!', '2025-04-14'),
+('R006', 'USR006', 'PROD006', 4, 'Nice battery backup and stylish design.', '2025-04-15'),
+('R007', 'USR007', 'PROD001', 3, 'Build quality is okay, nothing special.', '2025-04-16'),
+('R008', 'USR001', 'PROD004', 5, 'Customer service was very helpful.', '2025-04-17'),
+('R009', 'USR002', 'PROD005', 4, 'Smooth UI and fast processing.', '2025-04-18'),
+('R010', 'USR003', 'PROD003', 1, 'Terrible experience. Wouldn’t recommend.', '2025-04-19');
+
+
+SELECT * FROM reviews;
+
+
+
+-- 1. Create a new table with INT IDENTITY
+CREATE TABLE reviews_new (
+    id INT IDENTITY(1,1) PRIMARY KEY,
+    user_id NVARCHAR(50) NOT NULL,
+    product_id NVARCHAR(50) NOT NULL,
+    rating INT CHECK (rating >= 1 AND rating <= 5),
+    comment NVARCHAR(MAX),
+    review_date DATETIME,
+    created_at DATETIME DEFAULT GETDATE(),
+    updated_at DATETIME DEFAULT GETDATE(),
+    CONSTRAINT FK_review_user FOREIGN KEY (user_id)
+        REFERENCES users(id) ON DELETE NO ACTION,
+    CONSTRAINT FK_review_product FOREIGN KEY (product_id)
+        REFERENCES products(id) ON DELETE NO ACTION
+);
+
+-- 2. Copy data (exclude the old id column)
+INSERT INTO reviews_new (user_id, product_id, rating, comment, review_date, created_at, updated_at)
+SELECT user_id, product_id, rating, comment, review_date, created_at, updated_at
+FROM reviews;
+
+-- 3. Drop the old table
+DROP TABLE reviews;
+
+-- 4. Rename the new table to original name
+EXEC sp_rename 'reviews_new', 'reviews';
+
+
+SELECT * FROM reviews;
+

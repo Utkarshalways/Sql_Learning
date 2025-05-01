@@ -163,7 +163,7 @@ CREATE TABLE invoices (
     shipping_address NVARCHAR(500),
     total_amount DECIMAL(18,2) CHECK (total_amount >= 0),
     payment_method NVARCHAR(50),
-    status NVARCHAR(50),
+    status NVARCHAR(50),	
     created_at DATETIME DEFAULT GETDATE(),
     updated_at DATETIME DEFAULT GETDATE(),
     CONSTRAINT FK_invoice_order FOREIGN KEY (order_id)
