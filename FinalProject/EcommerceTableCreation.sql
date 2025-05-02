@@ -112,7 +112,7 @@ CREATE TABLE reviews (
 
 -- SHIPPING
 CREATE TABLE shipping (
-    id NVARCHAR(50) PRIMARY KEY,
+    id INT IDENTITY(1,1) PRIMARY KEY,
     order_id NVARCHAR(50) REFERENCES orders(id) ON DELETE CASCADE,
     shipping_method NVARCHAR(100),
     tracking_number NVARCHAR(100),
@@ -120,9 +120,14 @@ CREATE TABLE shipping (
     status NVARCHAR(50)
 );
 
+
+DROP table shipping
+DROP table wishlist
+DROP table shopping_cart
+
 -- WISHLIST
 CREATE TABLE wishlist (
-    id NVARCHAR(50) PRIMARY KEY,
+    id INT IDENTITY(1,1) PRIMARY KEY,
     user_id NVARCHAR(50),
     product_id NVARCHAR(50),
     CONSTRAINT FK_wishlist_user FOREIGN KEY (user_id)
@@ -130,9 +135,10 @@ CREATE TABLE wishlist (
     CONSTRAINT FK_wishlist_product FOREIGN KEY (product_id)
         REFERENCES products(id) ON DELETE NO ACTION
 );
+
 -- SHOPPING CART
 CREATE TABLE shopping_cart (
-    id NVARCHAR(50) PRIMARY KEY,
+    id INT IDENTITY(1,1) PRIMARY KEY,
     user_id NVARCHAR(50),
     product_id NVARCHAR(50),
     quantity INT CHECK (quantity > 0),
@@ -143,6 +149,7 @@ CREATE TABLE shopping_cart (
     CONSTRAINT FK_shoppingcart_product FOREIGN KEY (product_id)
         REFERENCES products(id) ON DELETE NO ACTION
 );
+
 
 -- INVENTORY
 CREATE TABLE inventory (
@@ -173,3 +180,5 @@ CREATE TABLE invoices (
     CONSTRAINT FK_invoice_vendor FOREIGN KEY (vendor_id)
         REFERENCES vendors(id) ON DELETE NO ACTION
 );
+
+

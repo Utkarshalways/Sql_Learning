@@ -221,3 +221,159 @@ EXEC sp_rename 'reviews_new', 'reviews';
 
 SELECT * FROM reviews;
 
+
+INSERT INTO categories (id, name, parent_category_id) VALUES
+('CAT009', 'Gaming Consoles', 'CAT001'),
+('CAT010', 'Home Appliances', NULL),
+('CAT011', 'Kitchen Appliances', 'CAT010');
+
+
+INSERT INTO products (
+    id, name, description, category_id, vendor_id, price, stockKeepingUnit, discount
+) VALUES
+('PROD007', 'Induction Cooktop', 'Energy efficient cooking solution', 'CAT011', 104, 3499.00, 'SKU007', 12.00),
+('PROD008', 'Bluetooth Neckband', 'Sweat-proof neckband with long battery', 'CAT007', 103, 1099.00, 'SKU008', 7.00),
+('PROD009', 'Smart LED TV', '4K Ultra HD Smart LED TV', 'CAT001', 102, 29999.00, 'SKU009', 6.00),
+('PROD010', 'Wireless Mouse', 'Ergonomic wireless mouse', 'CAT005', 104, 799.00, 'SKU010', 3.00),
+('PROD011', 'Mixer Grinder', '3-jar multipurpose mixer', 'CAT011', 105, 2399.00, 'SKU011', 9.00),
+('PROD012', 'Tablet X10', 'Large screen Android tablet', 'CAT004', 101, 18999.00, 'SKU012', 10.00),
+('PROD013', 'Fitness Tracker', 'Tracks activity and sleep', 'CAT006', 102, 1999.00, 'SKU013', 4.00),
+('PROD014', 'Air Purifier', 'Removes allergens and pollutants', 'CAT010', 103, 7499.00, 'SKU014', 6.00),
+('PROD015', 'Noise Cancelling Headphones', 'Premium audio with ANC', 'CAT007', 104, 6999.00, 'SKU015', 15.00),
+('PROD016', 'Mini Speaker', 'Compact Bluetooth speaker', 'CAT008', 103, 1499.00, 'SKU016', 11.00),
+('PROD017', 'Coffee Maker', 'Automatic drip coffee machine', 'CAT011', 105, 3299.00, 'SKU017', 8.00),
+('PROD018', 'Keyboard Mechanical', 'RGB mechanical gaming keyboard', 'CAT005', 101, 4599.00, 'SKU018', 5.00),
+('PROD019', 'Smartphone Case Z', 'Shockproof case for Smartphone Z', 'CAT004', 102, 599.00, 'SKU019', 2.00),
+('PROD020', 'Electric Kettle', 'Stainless steel body, 1.5L', 'CAT011', 105, 1299.00, 'SKU020', 6.00);
+
+
+
+INSERT INTO orders (
+    id, user_id, order_date, order_status, total_amount, payment_status, created_at, updated_at
+) VALUES
+('ORD004', 'USR001', '2025-04-04', 'Shipped', 49999.00, 'Paid', GETDATE(), GETDATE()),
+('ORD005', 'USR002', '2025-04-04', 'Delivered', 1099.00, 'Paid', GETDATE(), GETDATE()),
+('ORD006', 'USR003', '2025-04-05', 'Processing', 2399.00, 'Pending', GETDATE(), GETDATE()),
+('ORD007', 'USR001', '2025-04-05', 'Delivered', 1299.00, 'Paid', GETDATE(), GETDATE()),
+('ORD008', 'USR002', '2025-04-06', 'Shipped', 1499.00, 'Paid', GETDATE(), GETDATE()),
+('ORD009', 'USR003', '2025-04-06', 'Processing', 6999.00, 'Pending', GETDATE(), GETDATE()),
+('ORD010', 'USR001', '2025-04-06', 'Delivered', 3299.00, 'Paid', GETDATE(), GETDATE());
+
+-- Order Items
+INSERT INTO order_items (id, order_id, product_id, quantity, unit_price) VALUES
+('OI004', 'ORD004', 'PROD006', 1, 49999.00),
+('OI005', 'ORD005', 'PROD008', 1, 1099.00),
+('OI006', 'ORD006', 'PROD011', 1, 2399.00),
+('OI007', 'ORD007', 'PROD020', 1, 1299.00),
+('OI008', 'ORD008', 'PROD016', 1, 1499.00),
+('OI009', 'ORD009', 'PROD015', 1, 6999.00),
+('OI010', 'ORD010', 'PROD017', 1, 3299.00);
+
+
+INSERT INTO inventory (id, product_id, quantity_in_stock) VALUES
+('INV007', 'PROD007', 22),
+('INV008', 'PROD008', 35),
+('INV009', 'PROD009', 12),
+('INV010', 'PROD010', 50),
+('INV011', 'PROD011', 28),
+('INV012', 'PROD012', 20),
+('INV013', 'PROD013', 38),
+('INV014', 'PROD014', 16),
+('INV015', 'PROD015', 25),
+('INV016', 'PROD016', 42),
+('INV017', 'PROD017', 30),
+('INV018', 'PROD018', 27),
+('INV019', 'PROD019', 60),
+('INV020', 'PROD020', 45);
+
+
+
+INSERT INTO orders (id, user_id, order_date, order_status, total_amount, payment_status, created_at, updated_at) VALUES
+('ORD006', 'USR012', '2025-04-06 10:45:00', 'Delivered', 3499.00, 'Paid', GETDATE(), GETDATE()),
+('ORD007', 'USR015', '2025-04-07 11:30:00', 'Shipped', 1099.00, 'Paid', GETDATE(), GETDATE()),
+('ORD008', 'USR003', '2025-04-08 09:15:00', 'Processing', 7499.00, 'Pending', GETDATE(), GETDATE()),
+('ORD009', 'USR007', '2025-04-08 18:10:00', 'Processing', 4599.00, 'Pending', GETDATE(), GETDATE()),
+('ORD010', 'USR009', '2025-04-09 12:20:00', 'Delivered', 1299.00, 'Paid', GETDATE(), GETDATE());
+
+INSERT INTO order_items (id, order_id, product_id, quantity, unit_price) VALUES
+('OI006', 'ORD006', 'PROD007', 1, 3499.00),
+('OI007', 'ORD007', 'PROD008', 1, 1099.00),
+('OI008', 'ORD008', 'PROD014', 1, 7499.00),
+('OI009', 'ORD009', 'PROD018', 1, 4599.00),
+('OI010', 'ORD010', 'PROD020', 1, 1299.00);
+
+
+SELECT * FROM inventory;
+
+INSERT INTO invoices (
+    id, order_id, payment_id, vendor_id, invoice_date, due_date,
+    billing_address, shipping_address, total_amount, payment_method, status, created_at, updated_at
+) VALUES
+('INV001', 'ORD004', 'PAY004', 101, '2025-04-04', '2025-04-14',
+ '221 MG Road, Pune, MH', '221 MG Road, Pune, MH', 1299.00, 'UPI', 'Paid', GETDATE(), GETDATE()),
+
+('INV002', 'ORD005', 'PAY005', 102, '2025-04-05', '2025-04-15',
+ '44 Sarojini Nagar, Lucknow, UP', '44 Sarojini Nagar, Lucknow, UP', 2499.00, 'Card', 'Pending', GETDATE(), GETDATE()),
+
+('INV003', 'ORD006', 'PAY006', 104, '2025-04-06', '2025-04-16',
+ '17 Church Street, Bengaluru, KA', '17 Church Street, Bengaluru, KA', 3499.00, 'Net Banking', 'Paid', GETDATE(), GETDATE()),
+
+('INV004', 'ORD007', 'PAY007', 103, '2025-04-07', '2025-04-17',
+ '108 Jawahar Marg, Indore, MP', '108 Jawahar Marg, Indore, MP', 1099.00, 'UPI', 'Paid', GETDATE(), GETDATE()),
+
+('INV005', 'ORD008', 'PAY008', 105, '2025-04-08', '2025-04-18',
+ '55 Elgin Road, Kolkata, WB', '55 Elgin Road, Kolkata, WB', 7499.00, 'Card', 'Pending', GETDATE(), GETDATE()),
+
+('INV006', 'ORD009', 'PAY009', 101, '2025-04-08', '2025-04-18',
+ '205 Gandhi Road, Ahmedabad, GJ', '205 Gandhi Road, Ahmedabad, GJ', 4599.00, 'Cash on Delivery', 'Pending', GETDATE(), GETDATE()),
+
+('INV007', 'ORD010', 'PAY010', 104, '2025-04-09', '2025-04-19',
+ '88 Park Street, Kolkata, WB', '88 Park Street, Kolkata, WB', 1299.00, 'UPI', 'Paid', GETDATE(), GETDATE());
+
+
+ SELECT * FROM invoices;
+
+ INSERT INTO payments (
+    id, order_id, payment_method, amount, payment_date, created_at, updated_at
+) VALUES
+('PAY004', 'ORD004', 'UPI', 1299.00, '2025-04-04 14:05:00', GETDATE(), GETDATE()),
+('PAY005', 'ORD005', 'Card', 2499.00, '2025-04-05 17:35:00', GETDATE(), GETDATE()),
+('PAY006', 'ORD006', 'Net Banking', 3499.00, '2025-04-06 10:50:00', GETDATE(), GETDATE()),
+('PAY007', 'ORD007', 'UPI', 1099.00, '2025-04-07 11:35:00', GETDATE(), GETDATE()),
+('PAY008', 'ORD008', 'Card', 7499.00, '2025-04-08 09:20:00', GETDATE(), GETDATE()),
+('PAY009', 'ORD009', 'Cash on Delivery', 4599.00, '2025-04-08 18:15:00', GETDATE(), GETDATE()),
+('PAY010', 'ORD010', 'UPI', 1299.00, '2025-04-09 12:25:00', GETDATE(), GETDATE());
+
+SELECT * FROM wishlist
+SELECT * FROM shipping
+
+SELECT * FROM shopping_cart
+
+INSERT INTO shipping (order_id, shipping_method, tracking_number, estimated_delivery, status) VALUES
+('ORD004', 'Standard Delivery', 'TRK100004', '2025-04-09 18:00:00', 'Shipped'),
+('ORD005', 'Express Delivery', 'TRK100005', '2025-04-07 14:00:00', 'Processing'),
+('ORD006', 'Standard Delivery', 'TRK100006', '2025-04-11 10:00:00', 'Delivered'),
+('ORD007', 'Express Delivery', 'TRK100007', '2025-04-12 16:30:00', 'Shipped'),
+('ORD008', 'Standard Delivery', 'TRK100008', '2025-04-15 11:00:00', 'Processing'),
+('ORD009', 'Overnight', 'TRK100009', '2025-04-09 10:00:00', 'Processing'),
+('ORD010', 'Standard Delivery', 'TRK100010', '2025-04-14 13:00:00', 'Delivered');
+
+
+INSERT INTO wishlist (user_id, product_id) VALUES
+('USR002', 'PROD006'),
+('USR005', 'PROD009'),
+('USR008', 'PROD014'),
+('USR003', 'PROD012'),
+('USR010', 'PROD020'),
+('USR012', 'PROD015'),
+('USR015', 'PROD017');
+
+
+INSERT INTO shopping_cart (user_id, product_id, quantity) VALUES
+('USR001', 'PROD007', 1),
+('USR004', 'PROD011', 2),
+('USR006', 'PROD018', 1),
+('USR007', 'PROD010', 3),
+('USR009', 'PROD013', 1),
+('USR011', 'PROD016', 2),
+('USR014', 'PROD019', 1);
