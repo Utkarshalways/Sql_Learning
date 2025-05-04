@@ -1,9 +1,8 @@
-use gds;
 
 select SQRT(4)
 select getdate()
 
-DECLARE @DOB DATE='10/08/1982'
+DECLARE @DOB DATE='04/01/2004'
 DECLARE @Age INT  
 SET @Age = DATEDIFF(YEAR, @DOB, GETDATE()) - 
 	CASE 
