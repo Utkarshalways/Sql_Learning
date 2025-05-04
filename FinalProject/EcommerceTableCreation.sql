@@ -13,6 +13,29 @@ CREATE TABLE users (
     user_type NVARCHAR(50) CHECK (user_type IN ('customer', 'vendor')) NOT NULL
 );
 
+-- for creating multiples address ( want to store multiple addresses of a single user)
+
+CREATE TABLE user_addresses (
+    id INT IDENTITY(1,1) PRIMARY KEY,
+    user_id NVARCHAR(50),
+    address_line NVARCHAR(500),
+    address_type NVARCHAR(50), -- e.g., 'Home', 'Office', 'Billing'
+    is_primary BIT DEFAULT 0,
+    modified_at DATETIME DEFAULT GETDATE(),
+    CONSTRAINT FK_user_address FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+
+-- transfer the data of the old table into new address one 
+INSERT INTO user_addresses (user_id, address_line, address_type, is_primary)
+SELECT id, address, 'Home', 1 FROM users WHERE address IS NOT NULL;
+
+SELECT * FROM user_addresses;
+
+-- drop the address from the user table as now it is no need of that
+ALTER TABLE users DROP COLUMN address; 
+
+
 
 -- CUSTOMERS
 CREATE TABLE customers (
@@ -121,10 +144,6 @@ CREATE TABLE shipping (
 );
 
 
-DROP table shipping
-DROP table wishlist
-DROP table shopping_cart
-
 -- WISHLIST
 CREATE TABLE wishlist (
     id INT IDENTITY(1,1) PRIMARY KEY,
@@ -182,3 +201,25 @@ CREATE TABLE invoices (
 );
 
 
+CREATE TABLE user_event_log (
+    id INT IDENTITY(1,1) PRIMARY KEY,
+    user_id NVARCHAR(50) NOT NULL,
+    event_type NVARCHAR(100),         -- e.g., Login, Logout, ViewProduct, AddToCart
+    event_time DATETIME DEFAULT GETDATE(),
+    action_description NVARCHAR(MAX), -- What exactly happened
+    CONSTRAINT FK_event_user FOREIGN KEY (user_id)
+        REFERENCES users(id) ON DELETE CASCADE
+);
+
+
+CREATE TABLE alerts (
+    id INT IDENTITY(1,1) PRIMARY KEY,
+    alert_type NVARCHAR(100),         -- e.g., 'LowInventory', 'PriceDrop', etc.
+    product_id NVARCHAR(50),          -- FK to products
+    alert_message NVARCHAR(500),      -- e.g., 'Inventory below threshold: 2 units left'
+    alert_time DATETIME DEFAULT GETDATE(),
+    is_resolved BIT DEFAULT 0,        -- 0 = Unresolved, 1 = Resolved
+    resolved_time DATETIME NULL,      -- When alert was resolved (optional)
+    CONSTRAINT FK_alert_product FOREIGN KEY (product_id)
+        REFERENCES products(id) ON DELETE CASCADE
+);

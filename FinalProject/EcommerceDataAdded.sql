@@ -377,3 +377,49 @@ INSERT INTO shopping_cart (user_id, product_id, quantity) VALUES
 ('USR009', 'PROD013', 1),
 ('USR011', 'PROD016', 2),
 ('USR014', 'PROD019', 1);
+
+
+INSERT INTO alerts (product_id, alert_type, alert_message)
+VALUES
+('PROD001', 'Low Stock', 'Stock for iPhone 13 is below 3 units. Immediate restock needed.'),
+('PROD005', 'Out of Stock', 'Samsung Microwave is out of stock.'),
+('PROD009', 'Low Stock', 'Fire-Boltt Phoenix Smart Watch stock is low.');
+
+SELECT * FROM alerts;
+
+
+
+
+INSERT INTO user_event_log (user_id, event_type, action_description)
+VALUES
+-- Login Events
+('USR001', 'Login', 'User logged in successfully.'),
+('USR002', 'Login', 'User logged in successfully.'),
+('USR005', 'Login', 'User logged in successfully.'),
+
+-- Product Views
+('USR003', 'ViewProduct', 'Viewed product: Samsung Galaxy M14'),
+('USR004', 'ViewProduct', 'Viewed product: Lenovo Legion 5 Pro'),
+('USR007', 'ViewProduct', 'Viewed product: Fire-Boltt Phoenix Smart Watch'),
+
+-- Add to Cart
+('USR005', 'AddToCart', 'Added LG OLED TV to cart'),
+('USR006', 'AddToCart', 'Added Samsung Microwave to cart'),
+('USR009', 'AddToCart', 'Added Realme Narzo 60 to cart'),
+
+-- Wishlist
+('USR010', 'AddToWishlist', 'Added Apple MacBook Air M2 to wishlist'),
+('USR011', 'AddToWishlist', 'Added Dell XPS 13 to wishlist'),
+
+-- Order Events
+('USR012', 'PlaceOrder', 'Placed Order ORD006'),
+('USR014', 'PlaceOrder', 'Placed Order ORD005'),
+('USR015', 'PlaceOrder', 'Placed Order ORD007'),
+
+-- Logout
+('USR001', 'Logout', 'User logged out.'),
+('USR005', 'Logout', 'User logged out.'),
+('USR009', 'Logout', 'User logged out.');
+
+
+SELECT * FROM user_event_log
