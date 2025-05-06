@@ -77,6 +77,38 @@ GROUP BY
 GO
 
 
+WITH CategoryCTE AS (
+    SELECT 
+        id,
+        name,
+        parent_category_id,
+        0 AS Level,
+        CAST(name AS NVARCHAR(MAX)) AS Hierarchy
+    FROM 
+        categories
+    WHERE 
+        parent_category_id IS NULL
+    
+    UNION ALL
+    
+    SELECT 
+        c.id,
+        c.name,
+        c.parent_category_id,
+        cte.Level + 1,
+        CAST(cte.Hierarchy + ' > ' + c.name AS NVARCHAR(MAX))
+    FROM 
+        categories c
+        INNER JOIN CategoryCTE cte ON c.parent_category_id = cte.id
+)
+SELECT 
+    id AS CategoryID,
+    name AS CategoryName,
+    parent_category_id AS ParentCategoryID,
+    Level AS HierarchyLevel,
+    Hierarchy AS CategoryPath
+FROM 
+    CategoryCTE;
 SELECT *  FROM sys.tables;
 
 SELECT * FROM products;
@@ -84,3 +116,4 @@ SELECT * FROM categories;
 
 SELECT * FROM reviews;
 SELECT * FROM users;
+

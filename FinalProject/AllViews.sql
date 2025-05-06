@@ -89,6 +89,9 @@ GROUP BY
     u.id, u.name, u.email;
 GO
 
+
+SELECT * FROM vw_TopCustomers
+
 -- =============================================
 -- PRODUCT VIEWS
 -- =============================================
@@ -120,6 +123,9 @@ FROM
     LEFT JOIN inventory i ON p.id = i.product_id;
 GO
 
+
+SELECT * FROM vw_ProductDetails;
+
 -- 2. Products with inventory levels
 CREATE OR ALTER VIEW vw_ProductsWithInventory AS
 SELECT 
@@ -140,6 +146,8 @@ FROM
     LEFT JOIN categories c ON p.category_id = c.id
     LEFT JOIN inventory i ON p.id = i.product_id;
 GO
+
+SELECT * FROM vw_ProductsWithInventory;
 
 -- 3. Products by vendor
 CREATE OR ALTER VIEW vw_VendorProducts AS
@@ -163,6 +171,9 @@ FROM
     LEFT JOIN inventory i ON p.id = i.product_id;
 GO
 
+
+SELECT * FROM vw_VendorProducts
+
 -- 4. Category hierarchy
 CREATE OR ALTER VIEW vw_ProductCategories AS
 SELECT 
@@ -175,6 +186,8 @@ FROM
     categories c
     LEFT JOIN categories parent ON c.parent_category_id = parent.id;
 GO
+
+SELECT * FROM vw_ProductCategories;
 
 -- 5. Products by order frequency
 CREATE OR ALTER VIEW vw_PopularProducts AS
@@ -196,6 +209,8 @@ FROM
 GROUP BY 
     p.id, p.name, p.description, p.price, p.discount, c.name
 GO
+
+SELECT * FROM vw_PopularProducts;
 
 -- 6. Products with low inventory
 CREATE OR ALTER VIEW vw_LowStockProducts AS
@@ -222,6 +237,8 @@ WHERE
     i.quantity_in_stock < 10;
 GO
 
+SELECT * FROM vw_LowStockProducts;
+
 -- =============================================
 -- ORDER VIEWS
 -- =============================================
@@ -243,6 +260,9 @@ FROM
     orders o
     INNER JOIN users u ON o.user_id = u.id;
 GO
+
+
+SELECT * FROM vw_OrderDetails;
 
 -- 2. Orders with shipping information
 CREATE OR ALTER VIEW vw_OrdersWithShipping AS

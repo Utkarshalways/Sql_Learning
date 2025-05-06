@@ -223,3 +223,46 @@ CREATE TABLE alerts (
     CONSTRAINT FK_alert_product FOREIGN KEY (product_id)
         REFERENCES products(id) ON DELETE CASCADE
 );
+
+
+CREATE TABLE coupons (
+    id NVARCHAR(50) PRIMARY KEY,
+    code NVARCHAR(50) UNIQUE NOT NULL,
+    description NVARCHAR(255),
+    discount_type NVARCHAR(20) NOT NULL CHECK (discount_type IN ('PERCENTAGE', 'FIXED')),
+    discount_value DECIMAL(18,2) NOT NULL CHECK (discount_value > 0),
+    min_order_value DECIMAL(18,2) DEFAULT 0,
+    max_discount_amount DECIMAL(18,2) NULL,
+    start_date DATETIME NOT NULL,
+    end_date DATETIME NOT NULL,
+    is_active BIT DEFAULT 1,
+    usage_limit INT NULL,
+    usage_count INT DEFAULT 0,
+    created_at DATETIME DEFAULT GETDATE(),
+    updated_at DATETIME DEFAULT GETDATE(),
+    CONSTRAINT CHK_valid_dates CHECK (end_date > start_date)
+);
+
+-- COUPON USAGE TABLE
+CREATE TABLE coupon_usage (
+    id INT IDENTITY(1,1) PRIMARY KEY,
+    coupon_id NVARCHAR(50) NOT NULL,
+    order_id NVARCHAR(50) NOT NULL,
+    user_id NVARCHAR(50) NOT NULL,
+    discount_amount DECIMAL(18,2) NOT NULL,
+    used_at DATETIME DEFAULT GETDATE(),
+    CONSTRAINT FK_coupon_usage_coupon FOREIGN KEY (coupon_id) 
+        REFERENCES coupons(id) ON DELETE NO ACTION,
+    CONSTRAINT FK_coupon_usage_order FOREIGN KEY (order_id) 
+        REFERENCES orders(id) ON DELETE NO ACTION,
+    CONSTRAINT FK_coupon_usage_user FOREIGN KEY (user_id) 
+        REFERENCES users(id) ON DELETE NO ACTION,
+    CONSTRAINT UQ_coupon_order UNIQUE (coupon_id, order_id)
+);
+
+-- Add coupon_id and discount_amount columns to orders table
+ALTER TABLE orders
+ADD coupon_id NVARCHAR(50) NULL,
+    discount_amount DECIMAL(18,2) DEFAULT 0,
+    CONSTRAINT FK_orders_coupon FOREIGN KEY (coupon_id) 
+        REFERENCES coupons(id) ON DELETE NO ACTION;

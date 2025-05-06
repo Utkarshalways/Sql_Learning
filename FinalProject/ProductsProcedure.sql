@@ -4,9 +4,10 @@
 
 -- 1. Create new order with items
 CREATE OR ALTER PROCEDURE sp_CreateOrder
-    @OrderId NVARCHAR(50),  -- Now taken as input from the user
+    @OrderId NVARCHAR(50),
     @UserId NVARCHAR(50),
     @OrderItems OrderItemsTableType READONLY,
+    @CouponCode NVARCHAR(50) = NULL,
     @OrderStatus NVARCHAR(50) = 'Pending',
     @PaymentStatus NVARCHAR(50) = 'Pending'
 AS
@@ -14,7 +15,7 @@ BEGIN
     SET NOCOUNT ON;
     BEGIN TRY
         BEGIN TRANSACTION;
-        
+
         -- Calculate total amount
         DECLARE @TotalAmount DECIMAL(18,2);
         SELECT @TotalAmount = SUM(oi.quantity * 
@@ -22,9 +23,68 @@ BEGIN
         FROM @OrderItems oi
         JOIN products p ON oi.product_id = p.id;
 
+        -- Variables for coupon
+        DECLARE @CouponId NVARCHAR(50) = NULL;
+        DECLARE @DiscountAmount DECIMAL(18,2) = 0;
+        DECLARE @FinalAmount DECIMAL(18,2) = @TotalAmount;
+
+        -- Process coupon if provided
+        IF @CouponCode IS NOT NULL AND @CouponCode != ''
+        BEGIN
+            DECLARE @IsValid BIT;
+            DECLARE @ErrorMessage NVARCHAR(255);
+
+            -- Validate coupon
+            EXEC sp_ValidateCoupon
+                @CouponCode = @CouponCode,
+                @UserId = @UserId,
+                @OrderAmount = @TotalAmount,
+                @IsValid = @IsValid OUTPUT,
+                @DiscountAmount = @DiscountAmount OUTPUT,
+                @CouponId = @CouponId OUTPUT,
+                @ErrorMessage = @ErrorMessage OUTPUT;
+
+            IF @IsValid = 0
+            BEGIN
+                SET @CouponId = NULL;
+                SET @DiscountAmount = 0;
+            END
+            ELSE
+            BEGIN
+                SET @FinalAmount = @TotalAmount - @DiscountAmount;
+            END
+        END;
+
         -- Insert into orders
-        INSERT INTO orders (id, user_id, order_date, order_status, total_amount, payment_status)
-        VALUES (@OrderId, @UserId, GETDATE(), @OrderStatus, @TotalAmount, @PaymentStatus);
+        INSERT INTO orders (
+            id, user_id, order_date, order_status, 
+            total_amount, payment_status, coupon_id, discount_amount
+        )
+        VALUES (
+            @OrderId, @UserId, GETDATE(), @OrderStatus, 
+            @FinalAmount, @PaymentStatus, @CouponId, @DiscountAmount
+        );
+
+        -- If coupon was valid and applied, log usage after order insert
+        IF @CouponId IS NOT NULL
+        BEGIN
+            INSERT INTO coupon_usage (coupon_id, order_id, user_id, discount_amount)
+            VALUES (@CouponId, @OrderId, @UserId, @DiscountAmount);
+
+            UPDATE coupons
+            SET 
+                usage_count = usage_count + 1,
+                updated_at = GETDATE()
+            WHERE id = @CouponId;
+
+            INSERT INTO user_event_log (user_id, event_type, action_description)
+            VALUES (
+                @UserId, 
+                'CouponApplied', 
+                'Coupon ' + @CouponCode + ' applied to order ' + @OrderId +
+                ' with discount amount ' + CAST(@DiscountAmount AS NVARCHAR(20))
+            );
+        END;
 
         -- Insert order items
         INSERT INTO order_items (id, order_id, product_id, quantity, unit_price)
@@ -50,7 +110,13 @@ BEGIN
             inv.product_id,
             'Inventory below threshold: ' + CAST(inv.quantity_in_stock AS NVARCHAR(10)) + ' units left'
         FROM inventory inv
-        WHERE inv.quantity_in_stock <= 5;
+        WHERE inv.quantity_in_stock <= 5
+        AND NOT EXISTS (
+            SELECT 1 FROM alerts 
+            WHERE product_id = inv.product_id 
+            AND alert_type = 'LowInventory' 
+            AND is_resolved = 0
+        );
 
         COMMIT TRANSACTION;
     END TRY
@@ -58,7 +124,7 @@ BEGIN
         IF @@TRANCOUNT > 0
             ROLLBACK TRANSACTION;
 
-        DECLARE @ErrorMessage NVARCHAR(4000) = ERROR_MESSAGE();
+        SET @ErrorMessage = ERROR_MESSAGE();
         DECLARE @ErrorSeverity INT = ERROR_SEVERITY();
         DECLARE @ErrorState INT = ERROR_STATE();
 
