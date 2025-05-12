@@ -16,7 +16,7 @@ CREATE OR ALTER PROCEDURE sp_AddProduct
     @sku NVARCHAR(100),
     @discount DECIMAL(5,2),
     @quantity_in_stock INT,
-    @inventory_id NVARCHAR(50)  -- ✅ New parameter added
+    @inventory_id NVARCHAR(50) 
 AS
 BEGIN
     SET NOCOUNT ON;

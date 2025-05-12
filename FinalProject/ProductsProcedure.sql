@@ -4,9 +4,7 @@
 
 -- 1. Create new order with items
 CREATE OR ALTER PROCEDURE sp_CreateOrder
-    @OrderId NVARCHAR(50),
     @UserId NVARCHAR(50),
-    @OrderItems OrderItemsTableType READONLY,
     @CouponCode NVARCHAR(50) = NULL,
     @OrderStatus NVARCHAR(50) = 'Pending',
     @PaymentStatus NVARCHAR(50) = 'Pending'
@@ -16,12 +14,41 @@ BEGIN
     BEGIN TRY
         BEGIN TRANSACTION;
 
-        -- Calculate total amount
+        -- Generate the new Order ID
+        DECLARE @OrderId NVARCHAR(50);
+        DECLARE @MaxOrderId NVARCHAR(50);
+        DECLARE @NewOrderNumber INT;
+
+        -- Get the maximum order ID
+        SELECT @MaxOrderId = MAX(id) FROM orders;
+
+        -- Extract the numeric part and increment it
+        IF @MaxOrderId IS NOT NULL AND @MaxOrderId LIKE 'ORD[0-9][0-9][0-9]'
+        BEGIN
+            SET @NewOrderNumber = CAST(SUBSTRING(@MaxOrderId, 4, LEN(@MaxOrderId) - 3) AS INT) + 1;
+        END
+        ELSE
+        BEGIN
+            SET @NewOrderNumber = 1;  -- Start from 1 if no orders exist or format doesn't match
+        END
+
+        -- Format the new Order ID with leading zeros up to 3 digits
+        SET @OrderId = 'ORD' + RIGHT('000' + CAST(@NewOrderNumber AS NVARCHAR(3)), 3);
+
+        -- Calculate total amount from shopping cart
         DECLARE @TotalAmount DECIMAL(18,2);
-        SELECT @TotalAmount = SUM(oi.quantity * 
+        SELECT @TotalAmount = SUM(sc.quantity * 
             (p.price * (1 - ISNULL(p.discount, 0)/100)))
-        FROM @OrderItems oi
-        JOIN products p ON oi.product_id = p.id;
+        FROM shopping_cart sc
+        JOIN products p ON sc.product_id = p.id
+        WHERE sc.user_id = @UserId;
+
+        -- Check if the cart is empty
+        IF @TotalAmount IS NULL OR @TotalAmount = 0
+        BEGIN
+            RAISERROR('Shopping cart is empty or invalid', 16, 1);
+            RETURN;
+        END
 
         -- Variables for coupon
         DECLARE @CouponId NVARCHAR(50) = NULL;
@@ -86,22 +113,24 @@ BEGIN
             );
         END;
 
-        -- Insert order items
+        -- Insert order items from shopping cart
         INSERT INTO order_items (id, order_id, product_id, quantity, unit_price)
         SELECT 
             CONVERT(NVARCHAR(50), NEWID()),
             @OrderId,
-            oi.product_id,
-            oi.quantity,
+            sc.product_id,
+            sc.quantity,
             p.price * (1 - ISNULL(p.discount, 0)/100)
-        FROM @OrderItems oi
-        JOIN products p ON oi.product_id = p.id;
+        FROM shopping_cart sc
+        JOIN products p ON sc.product_id = p.id
+        WHERE sc.user_id = @UserId;
 
         -- Update inventory
         UPDATE inv
-        SET quantity_in_stock = inv.quantity_in_stock - oi.quantity
+        SET quantity_in_stock = inv.quantity_in_stock - sc.quantity
         FROM inventory inv
-        JOIN @OrderItems oi ON inv.product_id = oi.product_id;
+        JOIN shopping_cart sc ON inv.product_id = sc.product_id
+        WHERE sc.user_id = @UserId;
 
         -- Create low inventory alerts
         INSERT INTO alerts (alert_type, product_id, alert_message)
@@ -114,57 +143,46 @@ BEGIN
         AND NOT EXISTS (
             SELECT 1 FROM alerts 
             WHERE product_id = inv.product_id 
-            AND alert_type = 'LowInventory' 
-            AND is_resolved = 0
+                AND alert_type = 'LowInventory' 
+                AND is_resolved = 0
         );
 
+        -- Clear shopping cart for the user after order is created
+        DELETE FROM shopping_cart WHERE user_id = @UserId;
+
         COMMIT TRANSACTION;
+        
+        -- Optional: Return the generated order ID to the caller
+        SELECT * FROM orders WHERE id = @OrderId;
     END TRY
     BEGIN CATCH
         IF @@TRANCOUNT > 0
             ROLLBACK TRANSACTION;
 
-        SET @ErrorMessage = ERROR_MESSAGE();
-        DECLARE @ErrorSeverity INT = ERROR_SEVERITY();
-        DECLARE @ErrorState INT = ERROR_STATE();
+		SET @ErrorMessage = ERROR_MESSAGE();
+		PRINT @ErrorMessage
 
-        RAISERROR(@ErrorMessage, @ErrorSeverity, @ErrorState);
     END CATCH
 END;
 GO
 
+SELECT * FROM orders WHERE id = 'ORD024';
 
--- Define the OrderItemsTableType
-CREATE TYPE OrderItemsTableType AS TABLE
-(
-    product_id NVARCHAR(50),
-    quantity INT
-);
-GO
 
--- Declare table variable
-DECLARE @Items OrderItemsTableType;
-INSERT INTO @Items (product_id, quantity)
-VALUES 
-    ('PROD001', 1),
-    ('PROD002', 2);
 
--- User-supplied Order ID
-DECLARE @UserOrderId NVARCHAR(50) = 'ORD023';
+SELECT * FROM shopping_cart WHERE user_id = 'USR018'
 
 -- Execute the procedure
 EXEC sp_CreateOrder 
-    @OrderId = @UserOrderId,
-    @UserId = 'USR001',
-    @OrderItems = @Items,
+    @UserId = 'USR018',
     @OrderStatus = 'Confirmed',
     @PaymentStatus = 'Paid';
 
 
--- Show the generated order ID
-SELECT @GeneratedOrderId AS OrderID;
-
 SELECT * FROM orders;
+
+SELECT * FROM user_event_log;
+
 
 -- 2. Update order status
 CREATE OR ALTER PROCEDURE sp_UpdateOrderStatus
@@ -199,10 +217,8 @@ BEGIN
     BEGIN CATCH
         -- Log the error
         DECLARE @ErrorMessage NVARCHAR(4000) = ERROR_MESSAGE();
-        DECLARE @ErrorSeverity INT = ERROR_SEVERITY();
-        DECLARE @ErrorState INT = ERROR_STATE();
-        
-        RAISERROR(@ErrorMessage, @ErrorSeverity, @ErrorState);
+		
+		PRINT @ErrorMessage
     END CATCH;
 END;
 GO

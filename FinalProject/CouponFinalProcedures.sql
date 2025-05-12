@@ -4,6 +4,10 @@ SELECT * FROM sys.procedures;
 
 SELECT * FROM sys.triggers;
 
+SELECT * FROM sys.tables;
+
+
+SELECT * FROM product_price_history;
 
 -- =========================================
 -- COUPON VALIDATION PROCEDURE

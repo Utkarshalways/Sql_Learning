@@ -1,5 +1,5 @@
 -- =================================================================
--- sp_CreateUser - Register new users with proper password hashing
+-- sp_CreateUser - Register new users
 -- =================================================================
 CREATE OR ALTER PROCEDURE sp_CreateUser
     @Id NVARCHAR(50),
@@ -45,12 +45,12 @@ BEGIN
         -- Duplicate check
         IF EXISTS (
             SELECT 1 FROM users
-            WHERE id = @Id OR name = @Name
+            WHERE id = @Id
                OR (@Email IS NOT NULL AND email = @Email)
                OR (@PhoneNumber IS NOT NULL AND phone_number = @PhoneNumber)
         )
         BEGIN
-            RAISERROR('User with this ID, name, email, or phone number already exists', 16, 1);
+            RAISERROR('User with this ID, email, or phone number already exists', 16, 1);
             ROLLBACK TRANSACTION;
             RETURN;
         END
@@ -115,33 +115,32 @@ BEGIN
             ROLLBACK TRANSACTION;
 
         DECLARE @ErrorMessage NVARCHAR(4000) = ERROR_MESSAGE();
-        DECLARE @ErrorSeverity INT = ERROR_SEVERITY();
-        DECLARE @ErrorState INT = ERROR_STATE();
-
-        RAISERROR(@ErrorMessage, @ErrorSeverity, @ErrorState);
+        PRINT @ErrorMessage
+			
+      
     END CATCH
 END;
 GO
 
 
 
-
+SELECT * FROM user_addresses;
 
 
 EXEC sp_CreateUser
-    @Id = 'USR017',
-    @Name = 'jainnam jain',
-    @Email = 'jainan.jain@gmail.com',
-    @Password = 'jainam123',
-    @PhoneNumber = '9911232232',
+    @Id = 'USR019',
+    @Name = 'pankaj Singh',
+    @Email = 'pankaj.sin@fasdfgh@gmail.com',
+    @Password = 'pankaj123',
+    @PhoneNumber = '9431343221',
     @Gender = 'Male',
-    @DateOfBirth = '2003-05-02',
+    @DateOfBirth = '2003-07-02',
     @Country = 'India',
     @UserType = 'customer',
-    @Address = '12, nirman nagar, jaipur',
-	@PaymentDetails = 'Paytm UPI: jainam@phonepe',
-    @Age = 23,
-    @PinCode = 302012;
+    @Address = '101,goapalpura bypass,tonk phatak, jaipur',
+	@PaymentDetails = 'Paytm UPI: pankaj@phonepe',
+    @Age = 24,
+    @PinCode = 302018;
 
 SELECT * FROM users;
 
@@ -199,8 +198,10 @@ GO
 SELECT * FROM users;
 
 EXEC sp_AuthenticateUser
-@email_or_phone = 'jainan.jain@gmail.com',@password = 'jainam123'
+@email_or_phone = 'pankaj.singh@gmail.com',@password = 'pankaj123'
 
+
+SELECT * FROM user_event_log WHERE user_id = 'USR018';
 -- =================================================================
 -- sp_UpdateUserProfile - Update user profile information
 -- =================================================================
@@ -352,6 +353,9 @@ BEGIN
     END CATCH
 END;
 GO
+
+
+
 
 -- =================================================================
 -- sp_DeleteUser - Handle user deletion with cascading effects
@@ -746,14 +750,19 @@ BEGIN
             
         -- Return error information
         DECLARE @ErrorMessage NVARCHAR(4000) = ERROR_MESSAGE();
-        DECLARE @ErrorSeverity INT = ERROR_SEVERITY();
-        DECLARE @ErrorState INT = ERROR_STATE();
-        
-        RAISERROR(@ErrorMessage, @ErrorSeverity, @ErrorState);
+        PRINT @ErrorMessage
     END CATCH
 END;
 GO
 
+
+SELECT * FROM user_addresses;
+
+EXEC sp_AddUserAddress 
+@UserId = 'USR018',
+@AddressLine = '100,gopalpura bypass, Jaipur',
+@AddressType = 'Home',
+@IsPrimary = 0
 -- =================================================================
 -- sp_UpdateUserAddress - Update an existing address
 -- =================================================================
@@ -915,10 +924,7 @@ BEGIN
             
         -- Return error information
         DECLARE @ErrorMessage NVARCHAR(4000) = ERROR_MESSAGE();
-        DECLARE @ErrorSeverity INT = ERROR_SEVERITY();
-        DECLARE @ErrorState INT = ERROR_STATE();
-        
-        RAISERROR(@ErrorMessage, @ErrorSeverity, @ErrorState);
+        PRINT @ErrorMessage
     END CATCH
 END;
 GO
@@ -932,6 +938,7 @@ AS
 BEGIN
     SET NOCOUNT ON;
     
+	BEGIN TRY
     -- Validate input parameters
     IF @UserId IS NULL
     BEGIN
@@ -961,10 +968,15 @@ BEGIN
     ORDER BY 
         is_primary DESC, -- Primary address first
         modified_at DESC;
-
+	END TRY
+	BEGIN CATCH
+		
+		DECLARE @ErrorMessage NVARCHAR(4000) = ERROR_MESSAGE();
+		PRINT @ErrorMessage
+	END CATCH
 END
 
-EXEC sp_GetUserAddresses @UserId = 'USR017'
+EXEC sp_GetUserAddresses @UserId = 'USR028'
 
 SELECT * FROM customers;
 SELECT * FROM vendors

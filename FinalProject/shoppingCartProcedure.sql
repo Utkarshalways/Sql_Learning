@@ -54,19 +54,39 @@ GO
 SELECT * FROM users;
 SELECT * FROM products;
 
-EXEC sp_AddToCart @UserId = 'USR002', @ProductId = 'PROD002', @Quantity = 2;
+EXEC sp_AddToCart @UserId = 'USR018', @ProductId = 'PROD008', @Quantity = 1;
+EXEC sp_AddToCart @UserId = 'USR018', @ProductId = 'PROD015', @Quantity = 1;
+EXEC sp_AddToCart @UserId = 'USR018', @ProductId = 'PROD018', @Quantity = 1;
 
-
+SELECT * FROM shopping_cart WHERE user_id = 'USR002';
 -- 2. Update product quantity in cart
+
 CREATE OR ALTER PROCEDURE sp_UpdateCartQuantity
-    @UserId NVARCHAR(50),
-    @ProductId NVARCHAR(50),
-    @NewQuantity INT
+    @UserId NVARCHAR(50) = NULL,
+    @ProductId NVARCHAR(50) = NULL,
+    @NewQuantity INT = NULL
 AS
 BEGIN
     SET NOCOUNT ON;
-    BEGIN TRY
-        -- If quantity is 0 or negative, remove from cart
+    BEGIN TRY        
+		-- If quantity is 0 or negative, remove from cart
+		IF @UserId IS NULL
+		BEGIN 
+			RAISERROR('User Id is NULL',16,1);
+			RETURN
+		END
+		IF @ProductId = NULL 
+			BEGIN
+			RAISERROR('Product Id is NULL',16,1);
+			RETURN
+			END
+		IF @NewQuantity IS NULL
+			BEGIN 
+			RAISERROR('NEWQUANTITY can not be NULL',16,1);
+			RETURN
+			END
+		
+			
         IF @NewQuantity <= 0
         BEGIN
             EXEC sp_RemoveFromCart @UserId, @ProductId;
@@ -90,6 +110,7 @@ BEGIN
         -- Log the event
         INSERT INTO user_event_log (user_id, event_type, action_description)
         VALUES (@UserId, 'UpdateCart', 'Updated quantity of product ' + @ProductId + ' to ' + CAST(@NewQuantity AS NVARCHAR(10)));
+
     END TRY
     BEGIN CATCH
         -- Log the error
@@ -97,10 +118,15 @@ BEGIN
         DECLARE @ErrorSeverity INT = ERROR_SEVERITY();
         DECLARE @ErrorState INT = ERROR_STATE();
         
-        RAISERROR(@ErrorMessage, @ErrorSeverity, @ErrorState);
+        PRINT @ErrorMessage
     END CATCH;
 END;
 GO
+
+
+EXEC sp_UpdateCartQuantity @Userid = 'USR001', @ProductId = 'PROD001' ,@NewQuantity = 5;
+
+SELECT * FROM user_event_log WHERE user_id = 'USR002';
 
 -- 3. Remove product from cart
 CREATE OR ALTER PROCEDURE sp_RemoveFromCart
@@ -128,6 +154,8 @@ BEGIN
     END CATCH;
 END;
 GO
+
+
 
 -- 4. Empty user's cart
 CREATE OR ALTER PROCEDURE sp_ClearCart
