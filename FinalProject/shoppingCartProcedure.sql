@@ -54,12 +54,15 @@ GO
 SELECT * FROM users;
 SELECT * FROM products;
 
-EXEC sp_AddToCart @UserId = 'USR018', @ProductId = 'PROD008', @Quantity = 1;
-EXEC sp_AddToCart @UserId = 'USR018', @ProductId = 'PROD015', @Quantity = 1;
-EXEC sp_AddToCart @UserId = 'USR018', @ProductId = 'PROD018', @Quantity = 1;
+EXEC sp_AddToCart @UserId = 'USR016', @ProductId = 'PROD002', @Quantity = 1;
+EXEC sp_AddToCart @UserId = 'USR016', @ProductId = 'PROD008', @Quantity = 1;
+EXEC sp_AddToCart @UserId = 'USR016', @ProductId = 'PROD012', @Quantity = 1;
 
-SELECT * FROM shopping_cart WHERE user_id = 'USR002';
+SELECT * FROM shopping_cart WHERE user_id = 'USR016';
 -- 2. Update product quantity in cart
+
+SELECT * FROM reviews;
+SELECT * FROM sys.procedures;
 
 CREATE OR ALTER PROCEDURE sp_UpdateCartQuantity
     @UserId NVARCHAR(50) = NULL,

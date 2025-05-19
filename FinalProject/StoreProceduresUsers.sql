@@ -1,8 +1,7 @@
 -- =================================================================
 -- sp_CreateUser - Register new users
 -- =================================================================
-CREATE OR ALTER PROCEDURE sp_CreateUser
-    @Id NVARCHAR(50),
+CREATE OR ALTER PROCEDURE sp_CreateUser 
     @Name NVARCHAR(255),
     @Email NVARCHAR(255),
     @Password NVARCHAR(255),
@@ -21,15 +20,15 @@ BEGIN
     SET NOCOUNT ON;
 
     -- Basic validations
-    IF @Id IS NULL OR @Name IS NULL OR @Password IS NULL OR @UserType IS NULL
+    IF @Name IS NULL OR @Password IS NULL OR @UserType IS NULL
     BEGIN
-        RAISERROR('Required parameters (Id, Name, Password, UserType) cannot be null', 16, 1);
+        RAISERROR('Required parameters (Name, Password, UserType) cannot be null', 16, 1);
         RETURN;
     END
 
     IF @UserType NOT IN ('customer', 'vendor')
     BEGIN
-        RAISERROR('UserType must be either "customer" or "vendor"', 16, 1);
+        RAISERROR('User Type must be either "customer" or "vendor"', 16, 1);
         RETURN;
     END
 
@@ -42,15 +41,35 @@ BEGIN
     BEGIN TRY
         BEGIN TRANSACTION;
 
+        -- Generate the new User ID
+        DECLARE @UserId NVARCHAR(50);
+        DECLARE @MaxUserId NVARCHAR(50);
+        DECLARE @NewUserNumber INT;
+
+        -- Get the maximum user ID
+        SELECT @MaxUserId = MAX(id) FROM users;
+
+        -- Extract the numeric part and increment it
+        IF @MaxUserId IS NOT NULL 
+        BEGIN
+            SET @NewUserNumber = CAST(SUBSTRING(@MaxUserId, 4, LEN(@MaxUserId) - 3) AS INT) + 1;
+        END
+        ELSE
+        BEGIN
+            SET @NewUserNumber = 1;  -- Start from 1 if no users exist or format doesn't match
+        END
+
+        SET @UserId = 'USR' + CAST(@NewUserNumber AS NVARCHAR(20));
+
         -- Duplicate check
         IF EXISTS (
             SELECT 1 FROM users
-            WHERE id = @Id
+            WHERE id = @UserId
                OR (@Email IS NOT NULL AND email = @Email)
                OR (@PhoneNumber IS NOT NULL AND phone_number = @PhoneNumber)
         )
         BEGIN
-            RAISERROR('User with this ID, email, or phone number already exists', 16, 1);
+            RAISERROR('User  with this ID, email, or phone number already exists', 16, 1);
             ROLLBACK TRANSACTION;
             RETURN;
         END
@@ -58,10 +77,10 @@ BEGIN
         -- Insert into users
         INSERT INTO users (id, name, email, password, phone_number, gender, DateOfBirth, country, user_type)
         VALUES (
-            @Id,
+            @UserId,
             @Name,
             @Email,
-            HASHBYTES('SHA2_256', CONVERT(VARBINARY, @password)),
+            HASHBYTES('SHA2_256', CONVERT(VARBINARY, @Password)),
             @PhoneNumber,
             @Gender,
             @DateOfBirth,
@@ -73,7 +92,7 @@ BEGIN
         IF @Address IS NOT NULL
         BEGIN
             INSERT INTO user_addresses (user_id, address_line, address_type, is_primary)
-            VALUES (@Id, @Address, 'Home', 1);
+            VALUES (@UserId, @Address, 'Home', 1);
         END
 
         -- Insert into customers
@@ -82,7 +101,7 @@ BEGIN
             DECLARE @CustomerId BIGINT = ISNULL((SELECT MAX(id) + 1 FROM customers), 1);
 
             INSERT INTO customers (id, userId, paymentDetails, age, address, pinCode)
-            VALUES (@CustomerId, @Id, @PaymentDetails, @Age, @Address, @PinCode);
+            VALUES (@CustomerId, @UserId, @PaymentDetails, @Age, @Address, @PinCode);
         END
 
         -- Insert into vendors
@@ -98,16 +117,16 @@ BEGIN
             END
 
             INSERT INTO vendors (id, userId, paymentReceivingDetails, address, pinCode, GSTnumber)
-            VALUES (@VendorId, @Id, @PaymentDetails, @Address, @PinCode, @GSTnumber);
+            VALUES (@VendorId, @UserId, @PaymentDetails, @Address, @PinCode, @GSTnumber);
         END
 
         COMMIT TRANSACTION;
 
         SELECT 
-            @Id AS UserId,
+            @UserId AS UserId,
             @Name AS UserName,
             @UserType AS UserType,
-            'User created successfully' AS Message;
+            'User  created successfully' AS Message;
 
     END TRY
     BEGIN CATCH
@@ -115,9 +134,7 @@ BEGIN
             ROLLBACK TRANSACTION;
 
         DECLARE @ErrorMessage NVARCHAR(4000) = ERROR_MESSAGE();
-        PRINT @ErrorMessage
-			
-      
+        PRINT @ErrorMessage;
     END CATCH
 END;
 GO
@@ -128,7 +145,6 @@ SELECT * FROM user_addresses;
 
 
 EXEC sp_CreateUser
-    @Id = 'USR019',
     @Name = 'pankaj Singh',
     @Email = 'pankaj.sin@fasdfgh@gmail.com',
     @Password = 'pankaj123',
@@ -430,6 +446,12 @@ END;
 GO
 
 EXEC sp_DeleteUser @id = 'USR017'
+
+
+
+
+
+-- MAY be DELETE THEM LATER
 
 -- =================================================================
 -- sp_CreateCustomer - Create customer profile linked to user
@@ -833,13 +855,13 @@ BEGIN
             
         -- Return error information
         DECLARE @ErrorMessage NVARCHAR(4000) = ERROR_MESSAGE();
-        DECLARE @ErrorSeverity INT = ERROR_SEVERITY();
-        DECLARE @ErrorState INT = ERROR_STATE();
-        
-        RAISERROR(@ErrorMessage, @ErrorSeverity, @ErrorState);
+        PRINT @ErrorMessage
     END CATCH
 END;
 GO
+
+
+EXEC 
 
 -- =================================================================
 -- sp_DeleteUserAddress - Delete a user address
@@ -977,6 +999,10 @@ BEGIN
 END
 
 EXEC sp_GetUserAddresses @UserId = 'USR028'
+
+
+CREATE PROCEDURE sp_LogoutUser 
+@UserId
 
 SELECT * FROM customers;
 SELECT * FROM vendors

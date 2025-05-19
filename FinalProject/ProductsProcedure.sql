@@ -23,7 +23,7 @@ BEGIN
         SELECT @MaxOrderId = MAX(id) FROM orders;
 
         -- Extract the numeric part and increment it
-        IF @MaxOrderId IS NOT NULL AND @MaxOrderId LIKE 'ORD[0-9][0-9][0-9]'
+        IF @MaxOrderId IS NOT NULL 
         BEGIN
             SET @NewOrderNumber = CAST(SUBSTRING(@MaxOrderId, 4, LEN(@MaxOrderId) - 3) AS INT) + 1;
         END
@@ -32,8 +32,7 @@ BEGIN
             SET @NewOrderNumber = 1;  -- Start from 1 if no orders exist or format doesn't match
         END
 
-        -- Format the new Order ID with leading zeros up to 3 digits
-        SET @OrderId = 'ORD' + RIGHT('000' + CAST(@NewOrderNumber AS NVARCHAR(3)), 3);
+        SET @OrderId = 'ORD' + CAST(@NewOrderNumber AS NVARCHAR(20));
 
         -- Calculate total amount from shopping cart
         DECLARE @TotalAmount DECIMAL(18,2);
@@ -170,16 +169,17 @@ SELECT * FROM orders WHERE id = 'ORD024';
 
 
 
-SELECT * FROM shopping_cart WHERE user_id = 'USR018'
+SELECT * FROM shopping_cart WHERE user_id = 'USR016'
 
 -- Execute the procedure
 EXEC sp_CreateOrder 
-    @UserId = 'USR018',
-    @OrderStatus = 'Confirmed',
-    @PaymentStatus = 'Paid';
+    @UserId = 'USR016',
+	@CouponCode = 'SAVE20',
+    @OrderStatus = 'Confirmed'
 
 
 SELECT * FROM orders;
+SELECT * FROM coupons;
 
 SELECT * FROM user_event_log;
 
@@ -272,14 +272,15 @@ BEGIN
             ROLLBACK TRANSACTION;
 
         DECLARE @ErrorMessage NVARCHAR(4000) = ERROR_MESSAGE();
-        DECLARE @ErrorSeverity INT = ERROR_SEVERITY();
-        DECLARE @ErrorState INT = ERROR_STATE();
-
-        RAISERROR(@ErrorMessage, @ErrorSeverity, @ErrorState);
+		PRINT @ErrorMessage
     END CATCH;
 END;
 GO
 
+
+EXEC sp_CancelOrder @OrderId = 'ORD0232'
+
+SELECT * FROM orders;
 
 SELECT * FROM payments;
 
@@ -287,28 +288,55 @@ SELECT * FROM payments;
 CREATE OR ALTER PROCEDURE sp_ProcessPayment
     @OrderId NVARCHAR(50),
     @PaymentMethod NVARCHAR(50),
-    @Amount DECIMAL(18,2),
     @PaymentId NVARCHAR(50) OUTPUT
 AS
 BEGIN
     SET NOCOUNT ON;
     BEGIN TRY
         BEGIN TRANSACTION;
-        
-        -- Generate a new payment ID
-        SET @PaymentId = CONVERT(NVARCHAR(50), NEWID());
-        
+
+        -- Generate the new Payment ID
+        DECLARE @MaxPaymentId NVARCHAR(50);
+        DECLARE @NewPaymentNumber INT;
+
+        -- Get the maximum payment ID
+        SELECT @MaxPaymentId = MAX(id) FROM payments;
+
+        -- Extract the numeric part and increment it
+        IF @MaxPaymentId IS NOT NULL 
+        BEGIN
+            SET @NewPaymentNumber = CAST(SUBSTRING(@MaxPaymentId, 4, LEN(@MaxPaymentId) - 3) AS INT) + 1;
+        END
+        ELSE
+        BEGIN
+            SET @NewPaymentNumber = 1;  -- Start from 1 if no payments exist or format doesn't match
+        END
+
+       
+		DECLARE @paymentStatus VARCHAR(10);
+		SELECT @paymentStatus = payment_status FROM orders WHERE id = @OrderId
+		IF @paymentStatus <> 'Pending' 
+		BEGIN 
+				RAISERROR('Already PAID or Order do not exists',16,1)
+				RETURN
+		END
+		
+		 -- Format the new Payment ID with leading zeros up to 3 digits
+        SET @PaymentId = 'PAY' + CAST(@NewPaymentNumber AS NVARCHAR(20))
+
+		DECLARE @Amount DECIMAL(10,2);
+		SELECT @Amount = total_amount FROM orders WHERE id = @OrderId;
         -- Insert the payment record
         INSERT INTO payments (id, order_id, payment_method, amount, payment_date)
         VALUES (@PaymentId, @OrderId, @PaymentMethod, @Amount, GETDATE());
-        
+
         -- Update the order's payment status
         UPDATE orders
         SET 
-            payment_status = 'Completed',
+            payment_status = 'Paid',
             updated_at = GETDATE()
         WHERE id = @OrderId;
-        
+
         -- Log the event
         INSERT INTO user_event_log (user_id, event_type, action_description)
         SELECT 
@@ -317,33 +345,63 @@ BEGIN
             'Payment of ' + CAST(@Amount AS NVARCHAR(20)) + ' processed for order ' + @OrderId
         FROM orders
         WHERE id = @OrderId;
-        
+
+
+		SELECT * FROM payments WHERE id = @PaymentId;
+
         COMMIT TRANSACTION;
+		
     END TRY
     BEGIN CATCH
         IF @@TRANCOUNT > 0
             ROLLBACK TRANSACTION;
-            
+
         -- Log the error
         DECLARE @ErrorMessage NVARCHAR(4000) = ERROR_MESSAGE();
-        DECLARE @ErrorSeverity INT = ERROR_SEVERITY();
-        DECLARE @ErrorState INT = ERROR_STATE();
-        
-        RAISERROR(@ErrorMessage, @ErrorSeverity, @ErrorState);
+        PRINT @ErrorMessage
     END CATCH;
 END;
 GO
+
+SELECT * FROM payments;
+
+SELECT * FROM orders;
+
+SELECT * FROM user_event_log;
+
+SELECT * FROM customers WHERE userid = 'USR014'
+
+DECLARE @paymentid VARCHAR(30) ;
+EXEC sp_ProcessPayment @OrderId = 'ORD28',@PaymentMethod = 'UPI',@Paymentid = @paymentid OUTPUT
+SELECT @paymentid as ID
+
+SELECT * FROM orders WHERE id = 'ORD27'
 
 -- 5. Create shipping record for order
 CREATE OR ALTER PROCEDURE sp_CreateShipment
     @OrderId NVARCHAR(50),
     @ShippingMethod NVARCHAR(100),
-    @TrackingNumber NVARCHAR(100),
-    @EstimatedDelivery DATETIME
+    @TrackingNumber NVARCHAR(100)
 AS
 BEGIN
     SET NOCOUNT ON;
     BEGIN TRY
+
+		DECLARE @OrderDate DATETIME;
+        DECLARE @EstimatedDelivery DATETIME;
+
+        -- Retrieve the order date from the orders table
+        SELECT @OrderDate = order_date FROM orders WHERE id = @OrderId;
+
+        -- Check if the order exists
+        IF @OrderDate IS NULL
+        BEGIN
+            RAISERROR('Order ID does not exist.', 16, 1);
+            RETURN;
+        END
+        -- Calculate the estimated delivery date (4 days after the order date)
+        SET @EstimatedDelivery = DATEADD(DAY, 4, @OrderDate);
+
         -- Insert the shipping record
         INSERT INTO shipping (order_id, shipping_method, tracking_number, estimated_delivery, status)
         VALUES (@OrderId, @ShippingMethod, @TrackingNumber, @EstimatedDelivery, 'Processing');
@@ -363,19 +421,37 @@ BEGIN
             'Shipment created for order ' + @OrderId + ' with tracking number ' + @TrackingNumber
         FROM orders
         WHERE id = @OrderId;
+
+		SELECT * FROM shipping where order_id = @OrderId
     END TRY
     BEGIN CATCH
         -- Log the error
         DECLARE @ErrorMessage NVARCHAR(4000) = ERROR_MESSAGE();
-        DECLARE @ErrorSeverity INT = ERROR_SEVERITY();
-        DECLARE @ErrorState INT = ERROR_STATE();
-        
-        RAISERROR(@ErrorMessage, @ErrorSeverity, @ErrorState);
+        PRINT @ErrorMessage
     END CATCH;
 END;
 GO
 
+SELECT 
+    o.id AS order_id,
+    o.order_date,
+    o.order_status,
+    s.shipping_method,
+    s.tracking_number,
+    s.estimated_delivery,
+    s.status AS shipping_status
+FROM 
+    orders o
+LEFT JOIN 
+    shipping s ON o.id = s.order_id
+WHERE 
+    o.id = 'ORD28';
+
 SELECT * FROM orders;
+SELECT * FROM shipping;
+
+EXEC sp_CreateShipment @OrderId = 'ORD27',@ShippingMethod = 'Delhivery', @TrackingNumber = 'TRACK123'
+
 SELECT * FROM shipping;
 
 -- 6. Update shipping status
@@ -413,13 +489,18 @@ BEGIN
     BEGIN CATCH
         -- Log the error
         DECLARE @ErrorMessage NVARCHAR(4000) = ERROR_MESSAGE();
-        DECLARE @ErrorSeverity INT = ERROR_SEVERITY();
-        DECLARE @ErrorState INT = ERROR_STATE();
-        
-        RAISERROR(@ErrorMessage, @ErrorSeverity, @ErrorState);
+        PRINT @ErrorMessage
     END CATCH;
 END;
 GO
+
+
+EXEC sp_UpdateShipmentStatus 
+    @OrderId = 'ORD27',  
+    @NewStatus = 'Delivered'; 
+
+	SELECT * FROM Orders;
+
 
 -- Additional useful procedures
 
