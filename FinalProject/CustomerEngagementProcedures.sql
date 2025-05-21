@@ -10,6 +10,17 @@ AS
 BEGIN
     SET NOCOUNT ON;
     BEGIN TRY
+		
+		IF NOT EXISTS (SELECT 1 FROM users WHERE id = @UserId)
+		BEGIN 
+			RAISERROR('User Not Exists',16,1);
+		END
+
+		IF NOT EXISTS (SELECT 1 FROM products WHERE id = @ProductId)
+		BEGIN 
+			RAISERROR('Product Not Exists',16,1);
+		END
+
         -- Check if the product is already in the wishlist
         IF NOT EXISTS (SELECT 1 FROM wishlist WHERE user_id = @UserId AND product_id = @ProductId)
         BEGIN
@@ -21,17 +32,22 @@ BEGIN
             INSERT INTO user_event_log (user_id, event_type, action_description)
             VALUES (@UserId, 'AddToWishlist', 'Added product ' + @ProductId + ' to wishlist');
         END
+		ELSE 
+		BEGIN
+
+			RAISERROR('Product is already in the wishlist.',16,1);
+		END
+		
     END TRY
     BEGIN CATCH
         -- Log the error
         DECLARE @ErrorMessage NVARCHAR(4000) = ERROR_MESSAGE();
-        DECLARE @ErrorSeverity INT = ERROR_SEVERITY();
-        DECLARE @ErrorState INT = ERROR_STATE();
-        
-        RAISERROR(@ErrorMessage, @ErrorSeverity, @ErrorState);
+		PRINT @ErrorMessage
     END CATCH;
 END;
 GO
+
+SELECT * FROM sys.procedures;
 
 -- 2. Remove from wishlist
 CREATE OR ALTER PROCEDURE sp_RemoveFromWishlist
@@ -41,7 +57,22 @@ AS
 BEGIN
     SET NOCOUNT ON;
     BEGIN TRY
-        -- Remove from wishlist
+        
+		IF NOT EXISTS (SELECT 1 FROM users WHERE id = @UserId)
+		BEGIN 
+			RAISERROR('User Not Exists',16,1);
+		END
+
+		IF NOT EXISTS (SELECT 1 FROM products WHERE id = @ProductId)
+		BEGIN 
+			RAISERROR('Product Not Exists',16,1);
+		END
+
+		 IF NOT EXISTS (SELECT 1 FROM wishlist WHERE user_id = @UserId AND product_id = @ProductId)
+        BEGIN
+			RAISERROR('Not such product in wishlist',16,1);
+		END 
+
         DELETE FROM wishlist
         WHERE user_id = @UserId AND product_id = @ProductId;
         
@@ -52,10 +83,7 @@ BEGIN
     BEGIN CATCH
         -- Log the error
         DECLARE @ErrorMessage NVARCHAR(4000) = ERROR_MESSAGE();
-        DECLARE @ErrorSeverity INT = ERROR_SEVERITY();
-        DECLARE @ErrorState INT = ERROR_STATE();
-        
-        RAISERROR(@ErrorMessage, @ErrorSeverity, @ErrorState);
+        PRINT @ErrorMessage;
     END CATCH;
 END;
 GO
@@ -92,8 +120,9 @@ BEGIN
         END
         
         -- Add the review
-        INSERT INTO reviews (id, user_id, product_id, rating, comment, review_date)
-        VALUES (CONVERT(NVARCHAR(50), NEWID()), @UserId, @ProductId, @Rating, @Comment, GETDATE());
+		
+        INSERT INTO reviews (user_id, product_id, rating, comment, review_date)
+        VALUES (@UserId, @ProductId, @Rating, @Comment, GETDATE());
         
         -- Log the event
         INSERT INTO user_event_log (user_id, event_type, action_description)
@@ -102,13 +131,12 @@ BEGIN
     BEGIN CATCH
         -- Log the error
         DECLARE @ErrorMessage NVARCHAR(4000) = ERROR_MESSAGE();
-        DECLARE @ErrorSeverity INT = ERROR_SEVERITY();
-        DECLARE @ErrorState INT = ERROR_STATE();
-        
-        RAISERROR(@ErrorMessage, @ErrorSeverity, @ErrorState);
+       PRINT @ErrorMessage
     END CATCH;
 END;
 GO
+
+SELECT * FROM sys.procedures;
 
 -- 4. Update existing review
 CREATE OR ALTER PROCEDURE sp_UpdateProductReview
@@ -124,6 +152,12 @@ BEGIN
         IF NOT EXISTS (SELECT 1 FROM reviews WHERE user_id = @UserId AND product_id = @ProductId)
         BEGIN
             RAISERROR('No existing review found to update', 16, 1);
+            RETURN;
+        END
+
+		IF @Comment IS NULL 
+		BEGIN 
+		 RAISERROR('Comment Cannot be NULL', 16, 1);
             RETURN;
         END
         
@@ -142,12 +176,43 @@ BEGIN
     BEGIN CATCH
         -- Log the error
         DECLARE @ErrorMessage NVARCHAR(4000) = ERROR_MESSAGE();
-        DECLARE @ErrorSeverity INT = ERROR_SEVERITY();
-        DECLARE @ErrorState INT = ERROR_STATE();
-        
-        RAISERROR(@ErrorMessage, @ErrorSeverity, @ErrorState);
+		PRINT @ErrorMessage
     END CATCH;
 END;
 GO
+
+
+
+CREATE OR ALTER PROCEDURE sp_DeleteProductReview
+    @UserId NVARCHAR(50),
+    @ProductId NVARCHAR(50)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    BEGIN TRY
+        -- Check if the review exists
+        IF NOT EXISTS (
+            SELECT 1 FROM reviews WHERE user_id = @UserId AND product_id = @ProductId
+        )
+        BEGIN
+            RAISERROR('Review not found for the specified user and product', 16, 1);
+            RETURN;
+        END
+        
+        -- Delete the review
+        DELETE FROM reviews WHERE user_id = @UserId AND product_id = @ProductId;
+        
+        -- Log the deletion event
+        INSERT INTO user_event_log (user_id, event_type, action_description)
+        VALUES (@UserId, 'DeleteReview', 'Deleted review for product ' + @ProductId);
+        
+    END TRY
+    BEGIN CATCH
+        DECLARE @ErrorMessage NVARCHAR(4000) = ERROR_MESSAGE();
+        PRINT @ErrorMessage
+    END CATCH;
+END;
+GO
+
 
 SELECT * FROM sys.procedures;

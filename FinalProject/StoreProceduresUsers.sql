@@ -1,15 +1,15 @@
 -- =================================================================
 -- sp_CreateUser - Register new users
 -- =================================================================
-CREATE OR ALTER PROCEDURE sp_CreateUser 
-    @Name NVARCHAR(255),
-    @Email NVARCHAR(255),
-    @Password NVARCHAR(255),
-    @PhoneNumber NVARCHAR(20),
-    @Gender NVARCHAR(10),
-    @DateOfBirth DATETIME,
-    @Country NVARCHAR(100),
-    @UserType NVARCHAR(50),
+CREATE OR ALTER PROCEDURE sp_CreateUser  
+    @Name NVARCHAR(255) = NULL,
+    @Email NVARCHAR(255) = NULL,
+    @Password NVARCHAR(255) = NULL,
+    @PhoneNumber NVARCHAR(20) = NULL,
+    @Gender NVARCHAR(10) = NULL,
+    @DateOfBirth DATETIME = NULL,
+    @Country NVARCHAR(100) = NULL,
+    @UserType NVARCHAR(50) = NULL,
     @Address NVARCHAR(500) = NULL,
     @PaymentDetails NVARCHAR(1000) = NULL,
     @PinCode INT = NULL,
@@ -18,29 +18,37 @@ CREATE OR ALTER PROCEDURE sp_CreateUser
 AS
 BEGIN
     SET NOCOUNT ON;
+	BEGIN TRY
+        BEGIN TRANSACTION;
+
+    DECLARE @ErrorMessage NVARCHAR(4000);
 
     -- Basic validations
     IF @Name IS NULL OR @Password IS NULL OR @UserType IS NULL
     BEGIN
-        RAISERROR('Required parameters (Name, Password, UserType) cannot be null', 16, 1);
-        RETURN;
+        SET @ErrorMessage = 'Required parameters (Name, Password, UserType) cannot be null';
+        THROW 50001, @ErrorMessage, 1;
+    END
+
+    IF @Gender IS NULL 
+    BEGIN 
+        SET @ErrorMessage = 'Required parameter (Gender) cannot be null';
+        THROW 50001, @ErrorMessage, 1;
     END
 
     IF @UserType NOT IN ('customer', 'vendor')
     BEGIN
-        RAISERROR('User Type must be either "customer" or "vendor"', 16, 1);
-        RETURN;
+        SET @ErrorMessage = 'User  Type must be either "customer" or "vendor"';
+        THROW 50001, @ErrorMessage, 1;
     END
 
     IF @Email IS NOT NULL AND @Email NOT LIKE '%_@_%.__%'
     BEGIN
-        RAISERROR('Invalid email format', 16, 1);
-        RETURN;
+        SET @ErrorMessage = 'Invalid email format';
+        THROW 50001, @ErrorMessage, 1;
     END
 
-    BEGIN TRY
-        BEGIN TRANSACTION;
-
+    
         -- Generate the new User ID
         DECLARE @UserId NVARCHAR(50);
         DECLARE @MaxUserId NVARCHAR(50);
@@ -69,9 +77,8 @@ BEGIN
                OR (@PhoneNumber IS NOT NULL AND phone_number = @PhoneNumber)
         )
         BEGIN
-            RAISERROR('User  with this ID, email, or phone number already exists', 16, 1);
-            ROLLBACK TRANSACTION;
-            RETURN;
+            SET @ErrorMessage = 'User  with this ID, email, or phone number already exists';
+            THROW 50001, @ErrorMessage, 1;
         END
 
         -- Insert into users
@@ -111,9 +118,8 @@ BEGIN
 
             IF @GSTnumber IS NULL
             BEGIN
-                RAISERROR('GST number is required for vendors', 16, 1);
-                ROLLBACK TRANSACTION;
-                RETURN;
+                SET @ErrorMessage = 'GST number is required for vendors';
+                THROW 50001, @ErrorMessage, 1;
             END
 
             INSERT INTO vendors (id, userId, paymentReceivingDetails, address, pinCode, GSTnumber)
@@ -133,8 +139,8 @@ BEGIN
         IF @@TRANCOUNT > 0
             ROLLBACK TRANSACTION;
 
-        DECLARE @ErrorMessage NVARCHAR(4000) = ERROR_MESSAGE();
-        PRINT @ErrorMessage;
+        SET @ErrorMessage = ERROR_MESSAGE();
+        PRINT @ErrorMessage; -- You can also use THROW to re-throw the error
     END CATCH
 END;
 GO
@@ -145,18 +151,18 @@ SELECT * FROM user_addresses;
 
 
 EXEC sp_CreateUser
-    @Name = 'pankaj Singh',
-    @Email = 'pankaj.sin@fasdfgh@gmail.com',
-    @Password = 'pankaj123',
-    @PhoneNumber = '9431343221',
+    @Name = 'Lakshya Sharma',
+    @Email = 'lakshyaSharma@gmail.com',
+    @Password = 'lakshya123',
+    @PhoneNumber = '9431343226',
     @Gender = 'Male',
-    @DateOfBirth = '2003-07-02',
+    @DateOfBirth = '2003-07-03',
     @Country = 'India',
     @UserType = 'customer',
-    @Address = '101,goapalpura bypass,tonk phatak, jaipur',
-	@PaymentDetails = 'Paytm UPI: pankaj@phonepe',
-    @Age = 24,
-    @PinCode = 302018;
+    @Address = '152, Kanakpura, Jaipur',
+	@PaymentDetails = 'Paytm UPI: Lakshya@oksbi',
+    @Age = 22,
+    @PinCode = 302020;
 
 SELECT * FROM users;
 
@@ -203,10 +209,10 @@ BEGIN
     END
     ELSE
     BEGIN
-		SELECT @email_or_phone
-		SELECT @hashedPassword as hashedpassword
-		SELECT password FROM users where email = @email_or_phone
-        SELECT 'Invalid credentials.' AS Result;
+		--SELECT @email_or_phone
+		--SELECT @hashedPassword as hashedpassword
+		--SELECT password FROM users where email = @email_or_phone
+        PRINT 'Invalid credentials.';
     END
 END;
 GO
@@ -214,10 +220,10 @@ GO
 SELECT * FROM users;
 
 EXEC sp_AuthenticateUser
-@email_or_phone = 'pankaj.singh@gmail.com',@password = 'pankaj123'
+@email_or_phone = 'lakshyaSharma@gmail.com',@password = 'lakshya123'
 
 
-SELECT * FROM user_event_log WHERE user_id = 'USR018';
+SELECT * FROM user_event_log WHERE user_id = 'USR19';
 -- =================================================================
 -- sp_UpdateUserProfile - Update user profile information
 -- =================================================================
@@ -234,7 +240,7 @@ CREATE OR ALTER PROCEDURE sp_UpdateUserProfile
 AS
 BEGIN
     SET NOCOUNT ON;
-    
+    BEGIN TRY
     -- Validate ID
     IF @Id IS NULL
     BEGIN
@@ -250,7 +256,7 @@ BEGIN
     END
     
     -- Begin transaction
-    BEGIN TRY
+    
         BEGIN TRANSACTION;
         
         -- Check if user exists
@@ -362,10 +368,7 @@ BEGIN
             
         -- Return error information
         DECLARE @ErrorMessage NVARCHAR(4000) = ERROR_MESSAGE();
-        DECLARE @ErrorSeverity INT = ERROR_SEVERITY();
-        DECLARE @ErrorState INT = ERROR_STATE();
-        
-        RAISERROR(@ErrorMessage, @ErrorSeverity, @ErrorState);
+        PRINT @ErrorMessage;
     END CATCH
 END;
 GO
@@ -437,9 +440,7 @@ BEGIN
             
         -- Return error information
         DECLARE @ErrorMessage NVARCHAR(4000) = ERROR_MESSAGE();
-        DECLARE @ErrorSeverity INT = ERROR_SEVERITY();
-        DECLARE @ErrorState INT = ERROR_STATE();
-        
+       
         RAISERROR(@ErrorMessage, @ErrorSeverity, @ErrorState);
     END CATCH
 END;
@@ -998,7 +999,7 @@ BEGIN
 	END CATCH
 END
 
-EXEC sp_GetUserAddresses @UserId = 'USR028'
+EXEC sp_GetUserAddresses @UserId = 'USR19'
 
 
 CREATE PROCEDURE sp_LogoutUser 
@@ -1006,3 +1007,6 @@ CREATE PROCEDURE sp_LogoutUser
 
 SELECT * FROM customers;
 SELECT * FROM vendors
+
+
+SELECT * FROM sys.procedures;

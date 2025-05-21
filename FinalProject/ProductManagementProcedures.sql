@@ -7,7 +7,6 @@ SELECT * FROM categories;
 
 -- ✅ Step 2: Create or Alter Procedure
 CREATE OR ALTER PROCEDURE sp_AddProduct
-    @id NVARCHAR(50),
     @name NVARCHAR(255),
     @description NVARCHAR(MAX),
     @category_id NVARCHAR(50),
@@ -21,9 +20,28 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
+    DECLARE @id NVARCHAR(50);
+    DECLARE @MaxProductId NVARCHAR(50);
+    DECLARE @NewProductNumber INT;
+
     BEGIN TRY
         BEGIN TRANSACTION;
-        
+
+        -- Generate new product ID
+        SELECT @MaxProductId = MAX(id) FROM products;
+
+        -- Extract the numeric part and increment it
+        IF @MaxProductId IS NOT NULL 
+        BEGIN
+            SET @NewProductNumber = CAST(SUBSTRING(@MaxProductId, 5, LEN(@MaxProductId) - 4) AS INT) + 1;
+        END
+        ELSE
+        BEGIN
+            SET @NewProductNumber = 1;  -- Start from 1 if no products exist
+        END
+
+        SET @id = 'PROD' + CAST(@NewProductNumber AS NVARCHAR(20));
+
         -- Check if category exists
         IF NOT EXISTS (SELECT 1 FROM categories WHERE id = @category_id)
         BEGIN
@@ -69,19 +87,13 @@ BEGIN
 
         COMMIT;
 
-        SELECT 'Product added successfully.' AS Result;
+        SELECT 'Product added successfully with ID: ' + @id AS Result;
     END TRY
     BEGIN CATCH
         IF @@TRANCOUNT > 0
             ROLLBACK;
 
-        SELECT 
-            ERROR_NUMBER() AS ErrorNumber,
-            ERROR_SEVERITY() AS ErrorSeverity,
-            ERROR_STATE() AS ErrorState,
-            ERROR_PROCEDURE() AS ErrorProcedure,
-            ERROR_LINE() AS ErrorLine,
-            ERROR_MESSAGE() AS ErrorMessage;
+        PRINT ERROR_MESSAGE();
     END CATCH
 END;
 GO

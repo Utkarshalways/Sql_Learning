@@ -10,7 +10,6 @@ INSERT INTO users (id, name, email, password, address, phone_number, gender, Dat
 ('USR009', 'Vikram Joshi', 'vikram.joshi@example.com', HASHBYTES('SHA2_256', CONVERT(VARBINARY, 'vikram123')), '19 Salt Lake, Kolkata', '9098123456', 'Male', '1993-03-03', 'India', 'customer'),
 ('USR010', 'Neha Kapoor', 'neha.kapoor@example.com', HASHBYTES('SHA2_256', CONVERT(VARBINARY, 'neha123')), '105 Sector 18, Noida', '9345678901', 'Female', '1996-10-25', 'India', 'customer');
 
-
 -- Customers 
 
 INSERT INTO users (id, name, email, password, address, phone_number, gender, DateOfBirth, country, user_type) VALUES

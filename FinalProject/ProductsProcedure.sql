@@ -223,6 +223,11 @@ BEGIN
 END;
 GO
 
+SELECT * FROM orders;
+SELECT * FROM orders WHERE user_id = 'USR018'
+SELECT * FROM inventory;
+sELECT * FROM products;
+
 -- 3. Cancel order with proper inventory adjustment
 CREATE OR ALTER PROCEDURE sp_CancelOrder
     @OrderId NVARCHAR(50)
@@ -517,8 +522,27 @@ BEGIN
         IF NOT EXISTS (SELECT 1 FROM inventory WHERE product_id = @ProductId)
         BEGIN
             -- Create inventory record with initial quantity
-            INSERT INTO inventory (id, product_id, quantity_in_stock)
-            VALUES (CONVERT(NVARCHAR(50), NEWID()), @ProductId, @QuantityChange);
+           -- Generate new Inventory ID
+DECLARE @InventoryId NVARCHAR(50);
+DECLARE @MaxInventoryId NVARCHAR(50);
+DECLARE @NewInventoryNumber INT;
+
+SELECT @MaxInventoryId = MAX(id) FROM inventory;
+
+IF @MaxInventoryId IS NOT NULL AND ISNUMERIC(SUBSTRING(@MaxInventoryId, 4, LEN(@MaxInventoryId))) = 1
+BEGIN
+    SET @NewInventoryNumber = CAST(SUBSTRING(@MaxInventoryId, 4, LEN(@MaxInventoryId)) AS INT) + 1;
+END
+ELSE
+BEGIN
+    SET @NewInventoryNumber = 1;
+END
+
+SET @InventoryId = 'INV' + CAST(@NewInventoryNumber AS NVARCHAR(20));
+
+-- Insert new inventory record
+INSERT INTO inventory (id, product_id, quantity_in_stock)
+VALUES (@InventoryId, @ProductId, @QuantityChange);
         END
         ELSE
         BEGIN
@@ -546,12 +570,17 @@ BEGIN
         
         -- Get product name for logging
         DECLARE @ProductName NVARCHAR(255);
+		DECLARE @vendorId INT;
+		DECLARE @userId NVARCHAR(20);
+		SELECT @vendorId = vendor_id FROM products WHERE id = @ProductId;
+		SELECT @userId = userId FROM vendors WHERE id = @vendorId;
         SELECT @ProductName = name FROM products WHERE id = @ProductId;
+		
         
         -- Log inventory change event
         INSERT INTO user_event_log (user_id, event_type, action_description)
         VALUES (
-            'SYSTEM', 
+            @userId, 
             'InventoryUpdate', 
             'Updated inventory for ' + @ProductName + ' (ID: ' + @ProductId + '): ' + 
             CAST(@QuantityChange AS NVARCHAR(10)) + ' units ' + 
@@ -562,13 +591,17 @@ BEGIN
     BEGIN CATCH
         -- Log the error
         DECLARE @ErrorMessage NVARCHAR(4000) = ERROR_MESSAGE();
-        DECLARE @ErrorSeverity INT = ERROR_SEVERITY();
-        DECLARE @ErrorState INT = ERROR_STATE();
-        
-        RAISERROR(@ErrorMessage, @ErrorSeverity, @ErrorState);
+        PRINT @ErrorMessage;
     END CATCH;
 END;
 GO
+ 
+ SELECT * FROM vendors;
+ SELECT * FROM products;
+ SELECT * FROM inventory;
+EXEC sp_UpdateInventory @ProductId = 'PROD022',@QuantityChange = 8,@ReasonCode= 'Restock'
+
+SELECT * FROM user_event_log;
 
 -- User Profile Management
 CREATE OR ALTER PROCEDURE sp_UpdateUserProfile
@@ -864,6 +897,8 @@ BEGIN
 END;
 GO
 
+EXEC sp_GetCustomerPurchaseHistory @UserId = 'USR19'
+
 -- Product Performance Analytics
 CREATE OR ALTER PROCEDURE sp_GetProductPerformance
     @ProductId NVARCHAR(50) = NULL,
@@ -985,3 +1020,5 @@ BEGIN
     END
 END;
 GO
+
+

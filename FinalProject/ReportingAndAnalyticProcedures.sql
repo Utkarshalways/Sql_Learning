@@ -88,6 +88,8 @@ BEGIN
 END;
 GO
 
+SELECT * FROM invoices;
+
 -- 2. Get sales report for vendor
 CREATE OR ALTER PROCEDURE sp_GetVendorSalesReport
     @VendorId BIGINT,

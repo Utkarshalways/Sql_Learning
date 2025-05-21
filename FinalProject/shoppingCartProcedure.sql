@@ -43,10 +43,7 @@ BEGIN
     BEGIN CATCH
         -- Log the error
         DECLARE @ErrorMessage NVARCHAR(4000) = ERROR_MESSAGE();
-        DECLARE @ErrorSeverity INT = ERROR_SEVERITY();
-        DECLARE @ErrorState INT = ERROR_STATE();
-        
-        RAISERROR(@ErrorMessage, @ErrorSeverity, @ErrorState);
+		PRINT @ErrorMessage;
     END CATCH;
 END;
 GO
@@ -54,11 +51,11 @@ GO
 SELECT * FROM users;
 SELECT * FROM products;
 
-EXEC sp_AddToCart @UserId = 'USR016', @ProductId = 'PROD002', @Quantity = 1;
-EXEC sp_AddToCart @UserId = 'USR016', @ProductId = 'PROD008', @Quantity = 1;
-EXEC sp_AddToCart @UserId = 'USR016', @ProductId = 'PROD012', @Quantity = 1;
+EXEC sp_AddToCart @UserId = 'USR19', @ProductId = 'PROD001', @Quantity = 1;
+EXEC sp_AddToCart @UserId = 'USR19', @ProductId = 'PROD006', @Quantity = 1;
+EXEC sp_AddToCart @UserId = 'USR19', @ProductId = 'PROD013', @Quantity = 1;
 
-SELECT * FROM shopping_cart WHERE user_id = 'USR016';
+SELECT * FROM shopping_cart WHERE user_id = 'USR19';
 -- 2. Update product quantity in cart
 
 SELECT * FROM reviews;
@@ -150,14 +147,18 @@ BEGIN
     BEGIN CATCH
         -- Log the error
         DECLARE @ErrorMessage NVARCHAR(4000) = ERROR_MESSAGE();
-        DECLARE @ErrorSeverity INT = ERROR_SEVERITY();
-        DECLARE @ErrorState INT = ERROR_STATE();
-        
-        RAISERROR(@ErrorMessage, @ErrorSeverity, @ErrorState);
+        PRINT @ErrorMessage;
     END CATCH;
 END;
 GO
+EXEC sp_RemoveFromCart @UserId = 'USR19', @ProductId = 'PROD013'
 
+
+SELECT * FROM shopping_cart WHERE user_id = 'USR19';
+
+SELECT * FROM user_event_log WHERE user_id = 'USR19';
+
+SELECT * FROM shopping_cart WHERE user_id = 'USR19' AND product_id = 'PR0D013';
 
 
 -- 4. Empty user's cart
@@ -178,68 +179,10 @@ BEGIN
     BEGIN CATCH
         -- Log the error
         DECLARE @ErrorMessage NVARCHAR(4000) = ERROR_MESSAGE();
-        DECLARE @ErrorSeverity INT = ERROR_SEVERITY();
-        DECLARE @ErrorState INT = ERROR_STATE();
-        
-        RAISERROR(@ErrorMessage, @ErrorSeverity, @ErrorState);
+        PRINT @ErrorMessage
     END CATCH;
 END;
 GO
 
--- 5. Convert cart to order (transaction)
-CREATE OR ALTER PROCEDURE sp_MoveCartToOrder
-    @UserId NVARCHAR(50),
-    @OrderId NVARCHAR(50) OUTPUT
-AS
-BEGIN
-    SET NOCOUNT ON;
-    BEGIN TRY
-        BEGIN TRANSACTION;
-        
-        -- Check if the cart is empty
-        IF NOT EXISTS (SELECT 1 FROM shopping_cart WHERE user_id = @UserId)
-        BEGIN
-            RAISERROR('Shopping cart is empty', 16, 1);
-            RETURN;
-        END
-        
-        -- Create table variable to hold cart items
-        DECLARE @CartItems OrderItemsTableType;
-        
-        -- Populate the table variable
-        INSERT INTO @CartItems (product_id, quantity)
-        SELECT product_id, quantity
-        FROM shopping_cart
-        WHERE user_id = @UserId;
-        
-        -- Create the order using the existing procedure
-        EXEC sp_CreateOrder 
-            @UserId = @UserId,
-            @OrderItems = @CartItems,
-            @OrderStatus = 'Pending',
-            @PaymentStatus = 'Pending',
-            @OrderId = @OrderId OUTPUT;
-        
-        -- Clear the cart
-        EXEC sp_ClearCart @UserId;
-        
-        -- Log the event
-        INSERT INTO user_event_log (user_id, event_type, action_description)
-        VALUES (@UserId, 'CartToOrder', 'Converted cart to order ' + @OrderId);
-        
-        COMMIT TRANSACTION;
-    END TRY
-    BEGIN CATCH
-        IF @@TRANCOUNT > 0
-            ROLLBACK TRANSACTION;
-            
-        -- Log the error
-        DECLARE @ErrorMessage NVARCHAR(4000) = ERROR_MESSAGE();
-        DECLARE @ErrorSeverity INT = ERROR_SEVERITY();
-        DECLARE @ErrorState INT = ERROR_STATE();
-        
-        RAISERROR(@ErrorMessage, @ErrorSeverity, @ErrorState);
-    END CATCH;
-END;
-GO
+EXEC sp_ClearCart @UserId = 'USR19'
 
