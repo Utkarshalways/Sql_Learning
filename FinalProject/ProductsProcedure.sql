@@ -7,60 +7,51 @@ CREATE OR ALTER PROCEDURE sp_CreateOrder
     @UserId NVARCHAR(50),
     @CouponCode NVARCHAR(50) = NULL,
     @OrderStatus NVARCHAR(50) = 'Pending',
-    @PaymentStatus NVARCHAR(50) = 'Pending'
+    @PaymentMethod NVARCHAR(50) = NULL, -- New: to capture payment method
+    @PaymentStatus NVARCHAR(50) = 'Pending' -- Moved to payments table
 AS
 BEGIN
     SET NOCOUNT ON;
     BEGIN TRY
         BEGIN TRANSACTION;
 
-        -- Generate the new Order ID
+        -- Generate new Order ID
         DECLARE @OrderId NVARCHAR(50);
         DECLARE @MaxOrderId NVARCHAR(50);
         DECLARE @NewOrderNumber INT;
 
-        -- Get the maximum order ID
         SELECT @MaxOrderId = MAX(id) FROM orders;
 
-        -- Extract the numeric part and increment it
         IF @MaxOrderId IS NOT NULL 
-        BEGIN
             SET @NewOrderNumber = CAST(SUBSTRING(@MaxOrderId, 4, LEN(@MaxOrderId) - 3) AS INT) + 1;
-        END
-        ELSE
-        BEGIN
-            SET @NewOrderNumber = 1;  -- Start from 1 if no orders exist or format doesn't match
-        END
+        ELSE 
+            SET @NewOrderNumber = 1;
 
         SET @OrderId = 'ORD' + CAST(@NewOrderNumber AS NVARCHAR(20));
 
         -- Calculate total amount from shopping cart
         DECLARE @TotalAmount DECIMAL(18,2);
-        SELECT @TotalAmount = SUM(sc.quantity * 
-            (p.price * (1 - ISNULL(p.discount, 0)/100)))
+        SELECT @TotalAmount = SUM(sc.quantity * (p.price * (1 - ISNULL(p.discount, 0)/100)))
         FROM shopping_cart sc
         JOIN products p ON sc.product_id = p.id
         WHERE sc.user_id = @UserId;
 
-        -- Check if the cart is empty
         IF @TotalAmount IS NULL OR @TotalAmount = 0
         BEGIN
             RAISERROR('Shopping cart is empty or invalid', 16, 1);
             RETURN;
         END
 
-        -- Variables for coupon
+        -- Coupon handling
         DECLARE @CouponId NVARCHAR(50) = NULL;
         DECLARE @DiscountAmount DECIMAL(18,2) = 0;
         DECLARE @FinalAmount DECIMAL(18,2) = @TotalAmount;
+        DECLARE @ErrorMessage NVARCHAR(255);
 
-        -- Process coupon if provided
         IF @CouponCode IS NOT NULL AND @CouponCode != ''
         BEGIN
             DECLARE @IsValid BIT;
-            DECLARE @ErrorMessage NVARCHAR(255);
 
-            -- Validate coupon
             EXEC sp_ValidateCoupon
                 @CouponCode = @CouponCode,
                 @UserId = @UserId,
@@ -70,39 +61,54 @@ BEGIN
                 @CouponId = @CouponId OUTPUT,
                 @ErrorMessage = @ErrorMessage OUTPUT;
 
-            IF @IsValid = 0
+            IF @IsValid = 1
+                SET @FinalAmount = @TotalAmount - @DiscountAmount;
+            ELSE
             BEGIN
                 SET @CouponId = NULL;
                 SET @DiscountAmount = 0;
             END
-            ELSE
-            BEGIN
-                SET @FinalAmount = @TotalAmount - @DiscountAmount;
-            END
-        END;
+        END
 
-        -- Insert into orders
+        -- Insert into orders (note: payment_status removed)
         INSERT INTO orders (
             id, user_id, order_date, order_status, 
-            total_amount, payment_status, coupon_id, discount_amount
+            total_amount, coupon_id, discount_amount
         )
         VALUES (
             @OrderId, @UserId, GETDATE(), @OrderStatus, 
-            @FinalAmount, @PaymentStatus, @CouponId, @DiscountAmount
+            @FinalAmount, @CouponId, @DiscountAmount
         );
 
-        -- If coupon was valid and applied, log usage after order insert
+        -- Insert payment for this order
+        DECLARE @MaxPaymentId NVARCHAR(50);
+        DECLARE @NewPaymentNumber INT;
+
+        -- Get the maximum payment ID
+        SELECT @MaxPaymentId = MAX(id) FROM payments;
+
+        -- Extract the numeric part and increment it
+        IF @MaxPaymentId IS NOT NULL 
+        BEGIN
+            SET @NewPaymentNumber = CAST(SUBSTRING(@MaxPaymentId, 4, LEN(@MaxPaymentId) - 3) AS INT) + 1;
+        END
+        ELSE
+        BEGIN
+            SET @NewPaymentNumber = 1;  -- Start from 1 if no payments exist or format doesn't match
+        END
+		DECLARE @PaymentId VARCHAR(20);
+		 -- Format the new Payment ID with leading zeros up to 3 digits
+        SET @PaymentId = 'PAY' + CAST(@NewPaymentNumber AS NVARCHAR(20))
+        INSERT INTO payments (
+            id, order_id, payment_method, amount, payment_date, payment_status
+        )
+        VALUES (
+            @PaymentId, @OrderId, @PaymentMethod, @FinalAmount, GETDATE(), @PaymentStatus
+        );
+
+        -- Log coupon usage if applied
         IF @CouponId IS NOT NULL
         BEGIN
-            INSERT INTO coupon_usage (coupon_id, order_id, user_id, discount_amount)
-            VALUES (@CouponId, @OrderId, @UserId, @DiscountAmount);
-
-            UPDATE coupons
-            SET 
-                usage_count = usage_count + 1,
-                updated_at = GETDATE()
-            WHERE id = @CouponId;
-
             INSERT INTO user_event_log (user_id, event_type, action_description)
             VALUES (
                 @UserId, 
@@ -110,9 +116,9 @@ BEGIN
                 'Coupon ' + @CouponCode + ' applied to order ' + @OrderId +
                 ' with discount amount ' + CAST(@DiscountAmount AS NVARCHAR(20))
             );
-        END;
+        END
 
-        -- Insert order items from shopping cart
+        -- Insert order items
         INSERT INTO order_items (id, order_id, product_id, quantity, unit_price)
         SELECT 
             CONVERT(NVARCHAR(50), NEWID()),
@@ -146,24 +152,25 @@ BEGIN
                 AND is_resolved = 0
         );
 
-        -- Clear shopping cart for the user after order is created
+        -- Clear cart
         DELETE FROM shopping_cart WHERE user_id = @UserId;
 
         COMMIT TRANSACTION;
-        
-        -- Optional: Return the generated order ID to the caller
+
+        -- Return new order
         SELECT * FROM orders WHERE id = @OrderId;
+
     END TRY
     BEGIN CATCH
         IF @@TRANCOUNT > 0
             ROLLBACK TRANSACTION;
 
-		SET @ErrorMessage = ERROR_MESSAGE();
-		PRINT @ErrorMessage
-
+        SET @ErrorMessage = ERROR_MESSAGE();
+        PRINT @ErrorMessage;
     END CATCH
 END;
 GO
+
 
 SELECT * FROM orders WHERE id = 'ORD024';
 
@@ -173,9 +180,10 @@ SELECT * FROM shopping_cart WHERE user_id = 'USR016'
 
 -- Execute the procedure
 EXEC sp_CreateOrder 
-    @UserId = 'USR016',
+    @UserId = 'USR19',
 	@CouponCode = 'SAVE20',
-    @OrderStatus = 'Confirmed'
+    @OrderStatus = 'Confirmed',
+	@PaymentMethod = 'COD'
 
 
 SELECT * FROM orders;
@@ -185,43 +193,7 @@ SELECT * FROM user_event_log;
 
 
 -- 2. Update order status
-CREATE OR ALTER PROCEDURE sp_UpdateOrderStatus
-    @OrderId NVARCHAR(50),
-    @NewStatus NVARCHAR(50)
-AS
-BEGIN
-    SET NOCOUNT ON;
-    BEGIN TRY
-        -- Update the order status
-        UPDATE orders
-        SET 
-            order_status = @NewStatus,
-            updated_at = GETDATE()
-        WHERE id = @OrderId;
-        
-        -- If the order is cancelled, we might want to handle that separately
-        IF @NewStatus = 'Cancelled'
-        BEGIN
-            EXEC sp_CancelOrder @OrderId;
-        END
-        
-        -- Log the event
-        INSERT INTO user_event_log (user_id, event_type, action_description)
-        SELECT 
-            user_id, 
-            'OrderStatusUpdate', 
-            'Order ' + @OrderId + ' status updated to ' + @NewStatus
-        FROM orders
-        WHERE id = @OrderId;
-    END TRY
-    BEGIN CATCH
-        -- Log the error
-        DECLARE @ErrorMessage NVARCHAR(4000) = ERROR_MESSAGE();
-		
-		PRINT @ErrorMessage
-    END CATCH;
-END;
-GO
+
 
 SELECT * FROM orders;
 SELECT * FROM orders WHERE user_id = 'USR018'
@@ -288,6 +260,62 @@ EXEC sp_CancelOrder @OrderId = 'ORD0232'
 SELECT * FROM orders;
 
 SELECT * FROM payments;
+
+
+CREATE OR ALTER PROCEDURE sp_UpdateOrderStatus
+    @OrderId NVARCHAR(50),
+    @NewStatus NVARCHAR(50)
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    BEGIN TRY
+        -- Check if the OrderId exists
+        IF NOT EXISTS (SELECT 1 FROM orders WHERE id = @OrderId)
+        BEGIN
+            RAISERROR('Order ID %s not found.', 16, 1, @OrderId);
+            RETURN;
+        END
+
+        -- Update the order status
+        UPDATE orders
+        SET 
+            order_status = @NewStatus,
+            updated_at = GETDATE()
+        WHERE id = @OrderId;
+
+        -- If the order is cancelled, call the cancel procedure
+        IF LOWER(@NewStatus) = 'cancelled'
+        BEGIN
+            EXEC sp_CancelOrder @OrderId;
+        END
+
+        -- If the order is shipped, mark the payment as completed
+        IF LOWER(@NewStatus) = 'shipped'
+        BEGIN
+            UPDATE payments
+            SET 
+                payment_status = 'Completed',
+                updated_at = GETDATE()
+            WHERE order_id = @OrderId;
+        END
+
+        -- Log the event
+        INSERT INTO user_event_log (user_id, event_type, action_description)
+        SELECT 
+            user_id, 
+            'OrderStatusUpdate', 
+            'Order ' + @OrderId + ' status updated to ' + @NewStatus
+        FROM orders
+        WHERE id = @OrderId;
+    END TRY
+    BEGIN CATCH
+        DECLARE @ErrorMessage NVARCHAR(4000) = ERROR_MESSAGE();
+        PRINT 'Error: ' + @ErrorMessage;
+    END CATCH;
+END;
+GO
+
 
 -- 4. Process payment for an order
 CREATE OR ALTER PROCEDURE sp_ProcessPayment
@@ -610,8 +638,7 @@ CREATE OR ALTER PROCEDURE sp_UpdateUserProfile
     @Email NVARCHAR(255) = NULL,
     @PhoneNumber NVARCHAR(20) = NULL,
     @Gender NVARCHAR(10) = NULL,
-    @DateOfBirth DATETIME = NULL,
-    @Country NVARCHAR(100) = NULL
+    @DateOfBirth DATETIME = NULL
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -623,8 +650,7 @@ BEGIN
             email = ISNULL(@Email, email),
             phone_number = ISNULL(@PhoneNumber, phone_number),
             gender = ISNULL(@Gender, gender),
-            DateOfBirth = ISNULL(@DateOfBirth, DateOfBirth),
-            country = ISNULL(@Country, country)
+            DateOfBirth = ISNULL(@DateOfBirth, DateOfBirth)
         WHERE id = @UserId;
         
         -- Log the event
@@ -634,10 +660,7 @@ BEGIN
     BEGIN CATCH
         -- Log the error
         DECLARE @ErrorMessage NVARCHAR(4000) = ERROR_MESSAGE();
-        DECLARE @ErrorSeverity INT = ERROR_SEVERITY();
-        DECLARE @ErrorState INT = ERROR_STATE();
-        
-        RAISERROR(@ErrorMessage, @ErrorSeverity, @ErrorState);
+		PRINT @ErrorMessage
     END CATCH;
 END;
 GO
@@ -714,10 +737,7 @@ BEGIN
     BEGIN CATCH
         -- Log the error
         DECLARE @ErrorMessage NVARCHAR(4000) = ERROR_MESSAGE();
-        DECLARE @ErrorSeverity INT = ERROR_SEVERITY();
-        DECLARE @ErrorState INT = ERROR_STATE();
-        
-        RAISERROR(@ErrorMessage, @ErrorSeverity, @ErrorState);
+       PRINT @ErrorMessage
     END CATCH;
 END;
 GO

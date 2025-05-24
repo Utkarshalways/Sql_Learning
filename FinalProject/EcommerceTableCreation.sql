@@ -9,10 +9,12 @@ CREATE TABLE users (
     phone_number NVARCHAR(20) UNIQUE,
     gender NVARCHAR(10),
     DateOfBirth DATETIME,
-    country NVARCHAR(100),
     user_type NVARCHAR(50) CHECK (user_type IN ('customer', 'vendor')) NOT NULL
 );
 
+
+ALTER TABLE users
+DROP COLUMN country;
 -- for creating multiples address ( want to store multiple addresses of a single user)
 
 CREATE TABLE user_addresses (
@@ -91,6 +93,8 @@ CREATE TABLE orders (
     updated_at DATETIME DEFAULT GETDATE()
 );
 
+
+
 -- ORDER ITEMS
 CREATE TABLE order_items (
     id NVARCHAR(50) PRIMARY KEY,
@@ -106,6 +110,8 @@ CREATE TABLE order_items (
 );
 
 
+
+
 -- PAYMENTS
 CREATE TABLE payments (
     id NVARCHAR(50) PRIMARY KEY,
@@ -116,6 +122,16 @@ CREATE TABLE payments (
     created_at DATETIME DEFAULT GETDATE(),
     updated_at DATETIME DEFAULT GETDATE()
 );
+
+ALTER TABLE payments
+ADD payment_status NVARCHAR(50) 
+    CONSTRAINT chk_payment_status CHECK (payment_status IN ('Pending', 'Completed', 'Failed'))
+    DEFAULT 'Pending';
+
+	ALTER TABLE payments DROP CONSTRAINT chk_payment_status
+	
+UPDATE p
+SET p.payment_status = o.payment_status FROM orders o JOIN payments p ON o.id = p.order_id
 
 -- REVIEWS
 CREATE TABLE reviews (
@@ -243,22 +259,7 @@ CREATE TABLE coupons (
     CONSTRAINT CHK_valid_dates CHECK (end_date > start_date)
 );
 
--- COUPON USAGE TABLE
-CREATE TABLE coupon_usage (
-    id INT IDENTITY(1,1) PRIMARY KEY,
-    coupon_id NVARCHAR(50) NOT NULL,
-    order_id NVARCHAR(50) NOT NULL,
-    user_id NVARCHAR(50) NOT NULL,
-    discount_amount DECIMAL(18,2) NOT NULL,
-    used_at DATETIME DEFAULT GETDATE(),
-    CONSTRAINT FK_coupon_usage_coupon FOREIGN KEY (coupon_id) 
-        REFERENCES coupons(id) ON DELETE NO ACTION,
-    CONSTRAINT FK_coupon_usage_order FOREIGN KEY (order_id) 
-        REFERENCES orders(id) ON DELETE NO ACTION,
-    CONSTRAINT FK_coupon_usage_user FOREIGN KEY (user_id) 
-        REFERENCES users(id) ON DELETE NO ACTION,
-    CONSTRAINT UQ_coupon_order UNIQUE (coupon_id, order_id)
-);
+
 
 -- Add coupon_id and discount_amount columns to orders table
 ALTER TABLE orders
@@ -266,3 +267,11 @@ ADD coupon_id NVARCHAR(50) NULL,
     discount_amount DECIMAL(18,2) DEFAULT 0,
     CONSTRAINT FK_orders_coupon FOREIGN KEY (coupon_id) 
         REFERENCES coupons(id) ON DELETE NO ACTION;
+
+BEGIN TRANSACTION
+
+ALTER TABLE orders
+DROP COLUMN payment_status
+
+
+DROP TABLE coupon_usage

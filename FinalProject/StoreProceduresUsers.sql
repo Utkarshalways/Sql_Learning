@@ -8,10 +8,9 @@ CREATE OR ALTER PROCEDURE sp_CreateUser
     @PhoneNumber NVARCHAR(20) = NULL,
     @Gender NVARCHAR(10) = NULL,
     @DateOfBirth DATETIME = NULL,
-    @Country NVARCHAR(100) = NULL,
     @UserType NVARCHAR(50) = NULL,
     @Address NVARCHAR(500) = NULL,
-    @PaymentDetails NVARCHAR(1000) = NULL,
+    @PaymentDetails NVARCHAR(1000) = 'COD',
     @PinCode INT = NULL,
     @Age INT = NULL,
     @GSTnumber NVARCHAR(50) = NULL -- For vendors
@@ -29,6 +28,12 @@ BEGIN
         SET @ErrorMessage = 'Required parameters (Name, Password, UserType) cannot be null';
         THROW 50001, @ErrorMessage, 1;
     END
+
+	IF @PhoneNumber IS NULL
+	BEGIN 
+		 SET @ErrorMessage = 'Required parameter (Phone Number) cannot be null';
+        THROW 50001, @ErrorMessage, 1;
+	END
 
     IF @Gender IS NULL 
     BEGIN 
@@ -48,7 +53,12 @@ BEGIN
         THROW 50001, @ErrorMessage, 1;
     END
 
-    
+	IF LEN(@PhoneNumber) <> 10 
+	BEGIN 
+		 SET @ErrorMessage = 'Invalid phone number';
+        THROW 50001, @ErrorMessage, 1;
+    END
+		
         -- Generate the new User ID
         DECLARE @UserId NVARCHAR(50);
         DECLARE @MaxUserId NVARCHAR(50);
@@ -82,7 +92,7 @@ BEGIN
         END
 
         -- Insert into users
-        INSERT INTO users (id, name, email, password, phone_number, gender, DateOfBirth, country, user_type)
+        INSERT INTO users (id, name, email, password, phone_number, gender, DateOfBirth, user_type)
         VALUES (
             @UserId,
             @Name,
@@ -91,7 +101,6 @@ BEGIN
             @PhoneNumber,
             @Gender,
             @DateOfBirth,
-            @Country,
             @UserType
         );
 
@@ -171,6 +180,8 @@ DELETE  FROM users WHERE id = 'USR017'
 
 SELECT * FROM customers
 
+SELECT * FROM payments;
+SELECT * FROM orders;
 
 
 SELECT * FROM user_event_log
@@ -234,7 +245,6 @@ CREATE OR ALTER PROCEDURE sp_UpdateUserProfile
     @PhoneNumber NVARCHAR(20) = NULL,
     @Gender NVARCHAR(10) = NULL,
     @DateOfBirth DATETIME = NULL,
-    @Country NVARCHAR(100) = NULL,
     @Address NVARCHAR(500) = NULL, -- For updating primary address
     @AddressType NVARCHAR(50) = 'Home' -- Default address type
 AS
@@ -305,17 +315,13 @@ BEGIN
             SET @Updates = @Updates + 'gender = ''' + @Gender + ''', ';
         IF @DateOfBirth IS NOT NULL
             SET @Updates = @Updates + 'DateOfBirth = ''' + CONVERT(NVARCHAR, @DateOfBirth, 121) + ''', ';
-        IF @Country IS NOT NULL
-            SET @Updates = @Updates + 'country = ''' + @Country + ''', ';
-            
+        
         -- Add timestamp
-        SET @Updates = @Updates + 'updated_at = GETDATE() ';
         
         -- Check if there are updates for the users table
         IF @Updates = 'updated_at = GETDATE() ' AND 
            @Name IS NULL AND @Email IS NULL AND 
-           @PhoneNumber IS NULL AND @Gender IS NULL AND @DateOfBirth IS NULL AND 
-           @Country IS NULL AND @Address IS NULL
+           @PhoneNumber IS NULL AND @Gender IS NULL AND @DateOfBirth IS NULL AND @Address IS NULL
         BEGIN
             RAISERROR('No fields to update provided', 16, 1);
             ROLLBACK TRANSACTION;
@@ -325,7 +331,7 @@ BEGIN
         -- Complete SQL statement for users table if needed
         IF @Updates != 'updated_at = GETDATE() ' OR
            (@Name IS NOT NULL OR @Email IS NOT NULL OR @PhoneNumber IS NOT NULL OR
-            @Gender IS NOT NULL OR @DateOfBirth IS NOT NULL OR @Country IS NOT NULL)
+            @Gender IS NOT NULL OR @DateOfBirth IS NOT NULL)
         BEGIN
             SET @SQL = @SQL + @Updates + 'WHERE id = ''' + @Id + '''';
             
@@ -384,7 +390,7 @@ CREATE OR ALTER PROCEDURE sp_DeleteUser
 AS
 BEGIN
     SET NOCOUNT ON;
-    
+     BEGIN TRY
     -- Validate ID
     IF @Id IS NULL
     BEGIN
@@ -395,7 +401,7 @@ BEGIN
     DECLARE @UserType NVARCHAR(50);
     
     -- Begin transaction
-    BEGIN TRY
+   
         BEGIN TRANSACTION;
         
         -- Check if user exists and get user type
@@ -440,8 +446,7 @@ BEGIN
             
         -- Return error information
         DECLARE @ErrorMessage NVARCHAR(4000) = ERROR_MESSAGE();
-       
-        RAISERROR(@ErrorMessage, @ErrorSeverity, @ErrorState);
+        PRINT @ErrorMessage;
     END CATCH
 END;
 GO
@@ -799,6 +804,8 @@ AS
 BEGIN
     SET NOCOUNT ON;
     
+    -- Begin transaction
+    BEGIN TRY
     -- Validate input parameters
     IF @AddressId IS NULL OR @UserId IS NULL
     BEGIN
@@ -806,8 +813,6 @@ BEGIN
         RETURN;
     END
     
-    -- Begin transaction
-    BEGIN TRY
         BEGIN TRANSACTION;
         
         -- Check if address exists and belongs to the user
@@ -873,7 +878,8 @@ CREATE OR ALTER PROCEDURE sp_DeleteUserAddress
 AS
 BEGIN
     SET NOCOUNT ON;
-    
+     -- Begin transaction
+    BEGIN TRY
     -- Validate input parameters
     IF @AddressId IS NULL OR @UserId IS NULL
     BEGIN
@@ -881,8 +887,7 @@ BEGIN
         RETURN;
     END
     
-    -- Begin transaction
-    BEGIN TRY
+   
         BEGIN TRANSACTION;
         
         -- Check if address exists and belongs to the user

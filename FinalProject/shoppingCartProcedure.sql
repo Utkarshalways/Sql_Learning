@@ -186,3 +186,57 @@ GO
 
 EXEC sp_ClearCart @UserId = 'USR19'
 
+
+
+
+CREATE PROCEDURE sp_MoveWishlistToCart
+    @UserId NVARCHAR(50)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    DECLARE @ErrorMessage NVARCHAR(4000);
+
+    BEGIN TRY
+        BEGIN TRANSACTION;
+
+        -- Check if the user has items in the wishlist
+        IF NOT EXISTS (SELECT 1 FROM dbo.wishlist WHERE user_id = @UserId)
+        BEGIN
+            RAISERROR('No items found in wishlist for the given user.', 16, 1);
+        END
+
+        -- First update existing products in cart (increase quantity)
+        UPDATE sc
+        SET 
+            sc.quantity = sc.quantity + 1,
+            sc.updated_at = GETDATE()
+        FROM dbo.shopping_cart sc
+        INNER JOIN dbo.wishlist w ON sc.user_id = w.user_id AND sc.product_id = w.product_id
+        WHERE w.user_id = @UserId;
+
+        -- Then insert products not already in cart
+        INSERT INTO dbo.shopping_cart (user_id, product_id, quantity, created_at, updated_at)
+        SELECT w.user_id, w.product_id, 1, GETDATE(), GETDATE()
+        FROM dbo.wishlist w
+        WHERE w.user_id = @UserId
+        AND NOT EXISTS (
+            SELECT 1
+            FROM dbo.shopping_cart sc
+            WHERE sc.user_id = w.user_id AND sc.product_id = w.product_id
+        );
+
+        -- Clear wishlist for the user
+        DELETE FROM dbo.wishlist WHERE user_id = @UserId;
+
+        COMMIT TRANSACTION;
+        PRINT 'Wishlist items successfully moved to shopping cart.';
+    END TRY
+    BEGIN CATCH
+        IF @@TRANCOUNT > 0
+            ROLLBACK TRANSACTION;
+
+        SET @ErrorMessage = ERROR_MESSAGE();
+        PRINT 'Error: ' + @ErrorMessage;
+    END CATCH
+END;
+GO
