@@ -6,7 +6,6 @@ EXEC sp_CreateUser
     @PhoneNumber = '9431343226',
     @Gender = 'Male',
     @DateOfBirth = '2003-07-03',
-    @Country = 'India',
     @UserType = 'customer',
     @Address = '152, Kanakpura, Jaipur',
 	@PaymentDetails = 'Paytm UPI: Lakshya@oksbi',
@@ -22,7 +21,6 @@ EXEC sp_CreateUser
     @PhoneNumber = '0987654321',
     @Gender = 'Female',
     @DateOfBirth = '1985-05-15',
-    @Country = 'Canada',
     @UserType = 'vendor',
     @Address = '456 Elm St',
     @PaymentDetails = 'Bank Transfer',
@@ -38,7 +36,6 @@ GO
         @PhoneNumber = '1234567890',
         @Gender = 'Male',
         @DateOfBirth = '1990-01-01',
-        @Country = 'USA',
         @UserType = 'customer';
 
 GO
@@ -52,7 +49,6 @@ BEGIN TRY
         @PhoneNumber = '1234567890',
         @Gender = 'Male',
         @DateOfBirth = '1990-01-01',
-        @Country = 'USA',
         @UserType = 'invalid_type';
 END TRY
 BEGIN CATCH
@@ -69,7 +65,6 @@ BEGIN TRY
         @PhoneNumber = '1234567890',
         @Gender = 'Male',
         @DateOfBirth = '1990-01-01',
-        @Country = 'USA',
         @UserType = 'customer';
 END TRY
 BEGIN CATCH
@@ -86,7 +81,6 @@ EXEC sp_CreateUser
     @PhoneNumber = '1234567890',
     @Gender = 'Male',
     @DateOfBirth = '1990-01-01',
-    @Country = 'USA',
     @UserType = 'customer';
 GO
 
@@ -99,7 +93,6 @@ BEGIN TRY
         @PhoneNumber = '0987654321',
         @Gender = 'Female',
         @DateOfBirth = '1992-02-02',
-        @Country = 'USA',
         @UserType = 'vendor';
 END TRY
 BEGIN CATCH
@@ -116,7 +109,6 @@ BEGIN TRY
         @PhoneNumber = '1234567890',
         @Gender = 'Male',
         @DateOfBirth = '1990-01-01',
-        @Country = 'USA',
         @UserType = 'vendor',
         @GSTnumber = NULL; -- GST number is required
 END TRY
@@ -134,7 +126,6 @@ EXEC sp_CreateUser
     @PhoneNumber = '9431343226',
     @Gender = 'Male',
     @DateOfBirth = '2003-07-03',
-    @Country = 'India',
     @UserType = 'customer',
     @Address = '152, Kanakpura, Jaipur',
 	@PaymentDetails = 'Paytm UPI: Lakshya@oksbi',
@@ -152,7 +143,6 @@ BEGIN TRY
         @PhoneNumber = '1234567890', -- Duplicate phone number
         @Gender = 'Female',
         @DateOfBirth = '1992-02-02',
-        @Country = 'USA',
         @UserType = 'vendor';
 END TRY
 BEGIN CATCH

@@ -1,6 +1,75 @@
 -- =================================================================
 -- sp_CreateUser - Register new users
 -- =================================================================
+
+CREATE OR ALTER FUNCTION ValidateEmail
+(
+    @email NVARCHAR(320) = NULL
+)
+RETURNS BIT
+AS
+BEGIN
+    DECLARE @Result BIT = 0;
+
+    -- Check Length + Start of email
+    IF @email IS NULL OR LEN(@email) > 320 OR CHARINDEX(' ', @email) > 0
+        RETURN 0;
+
+    -- Must contain exactly one @
+    IF LEN(@email) - LEN(REPLACE(@email, '@', '')) != 1
+        RETURN 0;
+
+    DECLARE @localPart NVARCHAR(64);
+    DECLARE @domainPart NVARCHAR(255);
+    DECLARE @lastDot INT;
+    DECLARE @tld NVARCHAR(10);
+
+    SET @localPart = LEFT(@email, CHARINDEX('@', @email) - 1);
+    SET @domainPart = RIGHT(@email, LEN(@email) - CHARINDEX('@', @email));
+
+    -- Local part and domain must not be empty
+    IF LEN(@localPart) = 0 OR LEN(@domainPart) = 0
+        RETURN 0;
+
+    -- Domain must contain at least one dot
+    IF CHARINDEX('.', @domainPart) = 0
+        RETURN 0;
+
+     -- Local part allowed characters check (basic)
+    IF PATINDEX('%[^a-zA-Z0-9._%+-]%', @localPart) > 0
+        RETURN 0;
+
+    -- Domain part allowed characters check
+    IF PATINDEX('%[^a-zA-Z0-9.-]%', @domainPart) > 0
+        RETURN 0;
+
+    -- No starting or ending dot in local part
+    IF LEFT(@localPart, 1) = '.' OR RIGHT(@localPart, 1) = '.'
+        RETURN 0;
+
+    -- Domain must not start or end with dot or hyphen
+    IF LEFT(@domainPart, 1) IN ('.', '-') OR RIGHT(@domainPart, 1) IN ('.', '-')
+        RETURN 0;
+
+    -- Check for consecutive dots
+    IF CHARINDEX('..', @email) > 0
+        RETURN 0;
+
+    -- Extract and validate TLD (after the last dot)
+    SET @lastDot = LEN(@domainPart) - CHARINDEX('.', REVERSE(@domainPart)) + 1;
+    SET @tld = RIGHT(@domainPart, LEN(@domainPart) - @lastDot);
+
+    IF LEN(@tld) < 2 OR LEN(@tld) > 24
+        RETURN 0;
+
+    SET @Result = 1;
+    RETURN @Result;
+END
+GO
+
+ 
+
+
 CREATE OR ALTER PROCEDURE sp_CreateUser  
     @Name NVARCHAR(255) = NULL,
     @Email NVARCHAR(255) = NULL,
@@ -47,7 +116,7 @@ BEGIN
         THROW 50001, @ErrorMessage, 1;
     END
 
-    IF @Email IS NOT NULL AND @Email NOT LIKE '%_@_%.__%'
+    IF @Email IS NOT NULL AND DBO.ValidateEmail(@Email) = 0
     BEGIN
         SET @ErrorMessage = 'Invalid email format';
         THROW 50001, @ErrorMessage, 1;
@@ -58,6 +127,25 @@ BEGIN
 		 SET @ErrorMessage = 'Invalid phone number';
         THROW 50001, @ErrorMessage, 1;
     END
+
+	IF @Password IS NULL OR LEN(@Password) < 8 OR 
+
+           PATINDEX('%[' + CHAR(97) + '-' + CHAR(122) + ']%', @Password COLLATE Latin1_General_BIN) <= 0 OR
+
+           PATINDEX('%[' + CHAR(65) + '-' + CHAR(90) + ']%', @Password COLLATE Latin1_General_BIN) <= 0 OR 
+
+           @Password NOT LIKE '%[0-9]%' OR 
+
+           @Password NOT LIKE '%[^a-zA-Z0-9]%'
+
+		    BEGIN
+
+            SET @ErrorMessage = 'Password must be at least 8 characters long, contain at least one uppercase letter, one lowercase letter, one digit, and one special character.';
+
+            THROW 50008, @ErrorMsg, 1;
+
+        END
+ 
 		
         -- Generate the new User ID
         DECLARE @UserId NVARCHAR(50);
@@ -154,7 +242,7 @@ BEGIN
 END;
 GO
 
-
+SELECT DBO.ValidateEmail('Utkarsh@.com')
 
 SELECT * FROM user_addresses;
 
@@ -166,7 +254,6 @@ EXEC sp_CreateUser
     @PhoneNumber = '9431343226',
     @Gender = 'Male',
     @DateOfBirth = '2003-07-03',
-    @Country = 'India',
     @UserType = 'customer',
     @Address = '152, Kanakpura, Jaipur',
 	@PaymentDetails = 'Paytm UPI: Lakshya@oksbi',
@@ -380,6 +467,75 @@ END;
 GO
 
 
+
+CREATE OR ALTER PROCEDURE sp_ResetPassword
+    @UserId NVARCHAR(50),
+    @OldPassword NVARCHAR(255),
+    @Password NVARCHAR(255)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    BEGIN TRY
+        -- Validate inputs
+        IF @UserId IS NULL OR @OldPassword IS NULL OR @Password IS NULL OR LEN(@Password) = 0
+        BEGIN
+            RAISERROR('User  ID, old password, and new password must be provided', 16, 1);
+            RETURN;
+        END
+        
+        -- Check if user exists and verify old password
+        DECLARE @StoredPassword VARBINARY(64);
+        
+        SELECT @StoredPassword = password 
+        FROM users 
+        WHERE id = @UserId;
+        
+        IF @StoredPassword IS NULL
+        BEGIN
+            RAISERROR('User  not found', 16, 1);
+            RETURN;
+        END
+        
+        -- Verify old password
+        IF @StoredPassword != HASHBYTES('SHA2_256', CONVERT(VARBINARY, @OldPassword))
+        BEGIN
+            RAISERROR('Old password is incorrect', 16, 1);
+            RETURN;
+        END
+
+		IF @Password IS NULL OR LEN(@Password) < 8 OR 
+
+           PATINDEX('%[' + CHAR(97) + '-' + CHAR(122) + ']%', @Password COLLATE Latin1_General_BIN) <= 0 OR
+
+           PATINDEX('%[' + CHAR(65) + '-' + CHAR(90) + ']%', @Password COLLATE Latin1_General_BIN) <= 0 OR 
+
+           @Password NOT LIKE '%[0-9]%' OR 
+
+           @Password NOT LIKE '%[^a-zA-Z0-9]%'
+
+		    BEGIN
+
+            RAISERROR('Password must be at least 8 characters long, contain at least one uppercase letter, one lowercase letter, one digit, and one special character.',16,1);
+			END
+           
+        
+        -- Update password
+        UPDATE users
+        SET password = HASHBYTES('SHA2_256', CONVERT(VARBINARY, @Password))
+        WHERE id = @UserId;
+        
+        -- Optionally, log the password reset event
+        INSERT INTO user_event_log (user_id, event_type, action_description)
+        VALUES (@UserId, 'PasswordReset', 'User  password was reset');
+        
+        SELECT 'Password reset successfully' AS Result;
+    END TRY
+    BEGIN CATCH
+        DECLARE @ErrorMessage NVARCHAR(4000) = ERROR_MESSAGE();
+        PRINT @ErrorMessage
+    END CATCH
+END;
+GO
 
 
 -- =================================================================
@@ -1007,8 +1163,6 @@ END
 EXEC sp_GetUserAddresses @UserId = 'USR19'
 
 
-CREATE PROCEDURE sp_LogoutUser 
-@UserId
 
 SELECT * FROM customers;
 SELECT * FROM vendors

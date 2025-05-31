@@ -79,9 +79,11 @@ GO
 -- 7. Shopping Cart Management: Add, Update, Remove, Clear, and Move to Order
 EXEC sp_AddToCart  
     @UserId = 'USR23',
-    @ProductId = 'PROD24', 
+    @ProductId = 'PROD002', 
     @Quantity = 2;
 GO
+
+SELECT * FROM products;
 
 EXEC sp_UpdateCartQuantity  
     @UserId = 'USR20',
@@ -105,21 +107,28 @@ EXEC sp_MoveCartToOrder
     @UserId = 'USR1';
 GO
 
+SELECT * FROM coupons;
+
 EXEC sp_CreateOrder  
     @UserId = 'USR23',
-    @CouponCode = 'DISCOUNT10',
-    @PaymentMethod = 'COD';
+    @CouponCode = 'SAVE20',
+    @PaymentMethod = 'UPI';
 GO
 
+SELECT * FROM payments;
+SELECT * FROM orders;
+SELECT * FROM order_items;
+
+
+SELECT * FROM sys.tables;
 EXEC sp_ProcessPayment  
-    @OrderId = 'ORD1',   -- Use actual order ID generated
-    @PaymentMethod = 'Credit Card',
-    @Amount = 150.00;
+    @OrderId = 'ORD33',   -- Use actual order ID generated
+    @PaymentMethod = 'COD'
 GO
 
 -- 9. Order Management: Update Status and Cancel Order
 EXEC sp_UpdateOrderStatus  
-    @OrderId = 'ORD31',   -- Use actual order ID
+    @OrderId = 'ORD32',   -- Use actual order ID
     @NewStatus = 'Shipped';
 GO
 
@@ -167,7 +176,7 @@ DECLARE @IsValid BIT,
         @ErrorMessage NVARCHAR(255);
 
 EXEC sp_ValidateCoupon  
-    @CouponCode = 'DISCOUNT10',
+    @CouponCode = 'WELCOME50',
     @UserId = 'USR1',
     @OrderAmount = 200.00,
     @IsValid = @IsValid OUTPUT,
@@ -189,7 +198,7 @@ GO
 
 -- 12. Shipping Management: Create and Update Shipment Status
 EXEC sp_CreateShipment  
-    @OrderId = 'ORD31',
+    @OrderId = 'ORD32',
     @ShippingMethod = 'Standard Shipping', 
     @TrackingNumber = 'TRACK123456';
 GO

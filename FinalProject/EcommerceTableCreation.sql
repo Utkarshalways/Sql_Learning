@@ -93,6 +93,11 @@ CREATE TABLE orders (
     updated_at DATETIME DEFAULT GETDATE()
 );
 
+ALTER TABLE orders
+ADD isReturned BIT DEFAULT 0;
+
+UPDATE orders
+SET isReturned = 0
 
 
 -- ORDER ITEMS
@@ -275,3 +280,16 @@ DROP COLUMN payment_status
 
 
 DROP TABLE coupon_usage
+
+CREATE TABLE order_returns (
+    return_id INT IDENTITY(1,1) PRIMARY KEY,
+    order_id NVARCHAR(50) NOT NULL,
+    product_id NVARCHAR(50) NOT NULL,
+    quantity INT NOT NULL,
+    return_date DATETIME DEFAULT GETDATE(),
+    reason NVARCHAR(255),
+    refund_amount DECIMAL(10,2),
+    processed BIT DEFAULT 0, -- 0 = pending, 1 = processed
+    FOREIGN KEY (order_id) REFERENCES orders(id),
+    FOREIGN KEY (product_id) REFERENCES products(id)
+);

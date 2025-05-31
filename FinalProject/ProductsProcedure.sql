@@ -42,6 +42,11 @@ BEGIN
             RETURN;
         END
 
+		IF UPPER(@PaymentMethod) NOT IN ('COD','CARD','NET BANKING','PAYPAL','UPI')
+		BEGIN
+			RAISERROR('Please Enter Correct payment method',16,1)
+		END
+
         -- Coupon handling
         DECLARE @CouponId NVARCHAR(50) = NULL;
         DECLARE @DiscountAmount DECIMAL(18,2) = 0;
@@ -99,6 +104,12 @@ BEGIN
 		DECLARE @PaymentId VARCHAR(20);
 		 -- Format the new Payment ID with leading zeros up to 3 digits
         SET @PaymentId = 'PAY' + CAST(@NewPaymentNumber AS NVARCHAR(20))
+
+		IF UPPER(@PaymentMethod) <> 'COD'
+		BEGIN 
+			SET @PaymentStatus = 'Paid'
+		END
+	
         INSERT INTO payments (
             id, order_id, payment_method, amount, payment_date, payment_status
         )
@@ -180,10 +191,10 @@ SELECT * FROM shopping_cart WHERE user_id = 'USR016'
 
 -- Execute the procedure
 EXEC sp_CreateOrder 
-    @UserId = 'USR19',
+    @UserId = 'USR014',
 	@CouponCode = 'SAVE20',
     @OrderStatus = 'Confirmed',
-	@PaymentMethod = 'COD'
+	@PaymentMethod = 'CODdsaf'
 
 
 SELECT * FROM orders;
@@ -742,27 +753,156 @@ BEGIN
 END;
 GO
 
--- Product Search and Filtering
-CREATE OR ALTER PROCEDURE sp_SearchProducts
-    @SearchTerm NVARCHAR(255) = NULL,
-    @CategoryId NVARCHAR(50) = NULL,
-    @MinPrice DECIMAL(18,2) = NULL,
-    @MaxPrice DECIMAL(18,2) = NULL,
-    @VendorId BIGINT = NULL,
-    @SortBy NVARCHAR(50) = 'name',  -- 'name', 'price_asc', 'price_desc', 'newest', 'rating'
-    @PageNumber INT = 1,
-    @PageSize INT = 20
+
+SELECT * FROM order_returns;
+
+CREATE PROCEDURE sp_return_product_from_order
+    @order_id NVARCHAR(50),
+    @product_id NVARCHAR(50),
+    @quantity INT,
+    @reason NVARCHAR(255)
 AS
 BEGIN
     SET NOCOUNT ON;
-    
-    -- Calculate pagination
-    DECLARE @Offset INT = (@PageNumber - 1) * @PageSize;
-    
-    -- Build dynamic SQL for flexibility
-    DECLARE @SQL NVARCHAR(MAX) = N'
+
+    DECLARE @ordered_qty INT;
+    SELECT @ordered_qty = quantity
+    FROM order_items
+    WHERE order_id = @order_id AND product_id = @product_id;
+
+    IF @ordered_qty IS NULL
+    BEGIN
+        RAISERROR('Product not found in the order.', 16, 1);
+        RETURN;
+    END
+
+    IF @quantity > @ordered_qty
+    BEGIN
+        RAISERROR('Return quantity exceeds ordered quantity.', 16, 1);
+        RETURN;
+    END
+
+    -- Get unit price
+    DECLARE @unit_price DECIMAL(10,2);
+    SELECT @unit_price = unit_price
+    FROM order_items
+    WHERE order_id = @order_id AND product_id = @product_id;
+
+    DECLARE @refund_amount DECIMAL(10,2) = @unit_price * @quantity;
+
+    -- Insert return record
+    INSERT INTO order_returns (
+        order_id, product_id, quantity,
+        reason, refund_amount,
+    processed 
+    )
+    VALUES (
+        @order_id, @product_id, @quantity,
+        @reason, @refund_amount,1
+    );
+
+    -- Update inventory
+    UPDATE inventory
+    SET quantity_in_stock = quantity_in_stock + @quantity
+    WHERE product_id = @product_id;
+
+    -- Update order item quantity
+    UPDATE order_items
+    SET quantity = quantity - @quantity
+    WHERE order_id = @order_id AND product_id = @product_id;
+
+	-- Check if all items have quantity = 0
+IF NOT EXISTS (
+    SELECT 1
+    FROM order_items
+    WHERE order_id = @order_id AND quantity > 0
+)
+BEGIN
+    -- Update order status as returned
+    UPDATE orders
+    SET order_status = 'Returned',
+        isReturned = 1 -- already fully returned
+    WHERE id = @order_id;
+END
+ELSE
+BEGIN
+    -- Partially returned
+    UPDATE orders
+    SET isReturned = 1
+    WHERE id = @order_id;
+END
+
+    PRINT 'Return processed successfully.';
+END;
+
+
+SELECT * FROM orders;
+
+EXEC sp_return_product_from_order @order_id = 'ORD33',@product_id = 'PROD016', @quantity = 1,@reason = 'Defective Product';
+
+SELECT * FROM order_items WHERE order_id = 'ORD33';
+SELECT * FROM order_items;
+SELECT * FROM orders;
+SELECT * FROM order_returns;
+
+
+
+SELECT 
+    o.id AS order_id,
+    o.user_id,
+    o.order_date,
+    o.order_status,
+    o.isReturned,
+
+    oi.product_id,
+    p.name AS product_name,
+
+    oi.quantity + ISNULL(r.total_returned_qty, 0) AS ordered_qty,
+    ISNULL(r.total_returned_qty, 0) AS returned_qty,
+    oi.quantity AS remaining_qty,
+
+    oi.unit_price,
+    (oi.unit_price * (oi.quantity + ISNULL(r.total_returned_qty, 0))) AS total_purchase_amount,
+    ISNULL(r.refund_amount, 0) AS total_refund_amount,
+    ((oi.unit_price * (oi.quantity + ISNULL(r.total_returned_qty, 0))) - ISNULL(r.refund_amount, 0)) AS net_amount,
+
+    CASE 
+        WHEN ISNULL(r.total_returned_qty, 0) = 0 THEN 'No'
+        WHEN oi.quantity = 0 THEN 'Fully Returned'
+        ELSE 'Partially Returned'
+    END AS return_status
+
+FROM orders o
+JOIN order_items oi ON o.id = oi.order_id
+JOIN products p ON oi.product_id = p.id
+
+LEFT JOIN (
     SELECT 
-        p.id, p.name, p.description, p.price, 
+        order_id, 
+        product_id,
+        SUM(quantity) AS total_returned_qty,
+        SUM(refund_amount) AS refund_amount
+    FROM order_returns
+    GROUP BY order_id, product_id
+) r ON oi.order_id = r.order_id AND oi.product_id = r.product_id
+
+
+
+
+
+CREATE OR ALTER FUNCTION dbo.fn_SearchProducts
+(
+    @SearchTerm NVARCHAR(255) = NULL
+)
+RETURNS TABLE
+AS
+RETURN
+(
+    SELECT 
+        p.id, 
+        p.name, 
+        p.description, 
+        p.price, 
         p.discount, 
         (p.price * (1 - ISNULL(p.discount, 0)/100)) AS final_price,
         c.name AS category_name,
@@ -776,74 +916,15 @@ BEGIN
     JOIN vendors v ON p.vendor_id = v.id
     JOIN users u ON v.userId = u.id
     LEFT JOIN inventory i ON p.id = i.product_id
-    WHERE 1=1';
-    
-    -- Add filters
-    IF @SearchTerm IS NOT NULL
-        SET @SQL = @SQL + N' AND (p.name LIKE ''%' + @SearchTerm + '%'' OR p.description LIKE ''%' + @SearchTerm + '%'')';
-    
-    IF @CategoryId IS NOT NULL
-        SET @SQL = @SQL + N' AND (p.category_id = ''' + @CategoryId + ''' OR c.parent_category_id = ''' + @CategoryId + ''')';
-    
-    IF @MinPrice IS NOT NULL
-        SET @SQL = @SQL + N' AND (p.price * (1 - ISNULL(p.discount, 0)/100)) >= ' + CAST(@MinPrice AS NVARCHAR);
-    
-    IF @MaxPrice IS NOT NULL
-        SET @SQL = @SQL + N' AND (p.price * (1 - ISNULL(p.discount, 0)/100)) <= ' + CAST(@MaxPrice AS NVARCHAR);
-    
-    IF @VendorId IS NOT NULL
-        SET @SQL = @SQL + N' AND v.id = ' + CAST(@VendorId AS NVARCHAR);
-    
-    -- Add sorting
-    SET @SQL = @SQL + N' ORDER BY ';
-    
-    IF @SortBy = 'name'
-        SET @SQL = @SQL + N'p.name ASC';
-    ELSE IF @SortBy = 'price_asc'
-        SET @SQL = @SQL + N'final_price ASC';
-    ELSE IF @SortBy = 'price_desc'
-        SET @SQL = @SQL + N'final_price DESC';
-    ELSE IF @SortBy = 'newest'
-        SET @SQL = @SQL + N'p.id DESC';  -- Assuming newer products have higher IDs
-    ELSE IF @SortBy = 'rating'
-        SET @SQL = @SQL + N'avg_rating DESC, review_count DESC';
-    ELSE
-        SET @SQL = @SQL + N'p.name ASC';  -- Default sort
-    
-    -- Add pagination
-    SET @SQL = @SQL + N' OFFSET ' + CAST(@Offset AS NVARCHAR) + ' ROWS FETCH NEXT ' + CAST(@PageSize AS NVARCHAR) + ' ROWS ONLY;';
-    
-    -- Execute the query
-    EXEC sp_executesql @SQL;
-    
-    -- Get total count for pagination info
-    SET @SQL = N'
-    SELECT COUNT(*) AS TotalCount
-    FROM products p
-    JOIN categories c ON p.category_id = c.id
-    JOIN vendors v ON p.vendor_id = v.id
-    WHERE 1=1';
-    
-    -- Add the same filters
-    IF @SearchTerm IS NOT NULL
-        SET @SQL = @SQL + N' AND (p.name LIKE ''%' + @SearchTerm + '%'' OR p.description LIKE ''%' + @SearchTerm + '%'')';
-    
-    IF @CategoryId IS NOT NULL
-        SET @SQL = @SQL + N' AND (p.category_id = ''' + @CategoryId + ''' OR c.parent_category_id = ''' + @CategoryId + ''')';
-    
-    IF @MinPrice IS NOT NULL
-        SET @SQL = @SQL + N' AND (p.price * (1 - ISNULL(p.discount, 0)/100)) >= ' + CAST(@MinPrice AS NVARCHAR);
-    
-    IF @MaxPrice IS NOT NULL
-        SET @SQL = @SQL + N' AND (p.price * (1 - ISNULL(p.discount, 0)/100)) <= ' + CAST(@MaxPrice AS NVARCHAR);
-    
-    IF @VendorId IS NOT NULL
-        SET @SQL = @SQL + N' AND v.id = ' + CAST(@VendorId AS NVARCHAR);
-    
-    -- Execute the count query
-    EXEC sp_executesql @SQL;
-END;
+    WHERE @SearchTerm IS NULL OR (p.name LIKE '%' + @SearchTerm + '%' OR p.description LIKE '%' + @SearchTerm + '%')
+);
 GO
+
+SELECT * FROM dbo.fn_SearchProducts('watch')
+SELECT * FROM products;
+
+SELECT * FROM sys.objects;
+
 
 -- Customer Analytics - Get Customer Purchase History
 CREATE OR ALTER PROCEDURE sp_GetCustomerPurchaseHistory
@@ -1042,3 +1123,4 @@ END;
 GO
 
 
+EXEC sp_GetProductPerformance @ProductId = 'PROD24',@Days = 10

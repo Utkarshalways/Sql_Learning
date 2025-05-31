@@ -9,6 +9,8 @@ SELECT * FROM sys.tables;
 
 SELECT * FROM product_price_history;
 
+EXEC sp_depends @objname = 'product_price_history'
+
 -- =========================================
 -- COUPON VALIDATION PROCEDURE
 -- =========================================
@@ -236,10 +238,7 @@ BEGIN
         
         -- Log the error
 		SET @ErrorMessage = ERROR_MESSAGE();
-        DECLARE @ErrorSeverity INT = ERROR_SEVERITY();
-        DECLARE @ErrorState INT = ERROR_STATE();
-        
-        RAISERROR(@ErrorMessage, @ErrorSeverity, @ErrorState);
+        PRINT @ErrorMessage
     END CATCH;
 END;
 GO
@@ -321,10 +320,7 @@ BEGIN
         
         -- Log the error
         DECLARE @ErrorMessage NVARCHAR(4000) = ERROR_MESSAGE();
-        DECLARE @ErrorSeverity INT = ERROR_SEVERITY();
-        DECLARE @ErrorState INT = ERROR_STATE();
-        
-        RAISERROR(@ErrorMessage, @ErrorSeverity, @ErrorState);
+        PRINT @ErrorMessage
     END CATCH;
 END;
 GO
@@ -410,10 +406,7 @@ BEGIN
         SET @CouponId = NULL;
         
         DECLARE @ErrorMessage NVARCHAR(4000) = ERROR_MESSAGE();
-        DECLARE @ErrorSeverity INT = ERROR_SEVERITY();
-        DECLARE @ErrorState INT = ERROR_STATE();
-        
-        RAISERROR(@ErrorMessage, @ErrorSeverity, @ErrorState);
+        PRINT @ErrorMessage
     END CATCH
 END;
 GO
