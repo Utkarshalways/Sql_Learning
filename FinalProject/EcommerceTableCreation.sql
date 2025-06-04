@@ -96,6 +96,9 @@ CREATE TABLE orders (
 ALTER TABLE orders
 ADD isReturned BIT DEFAULT 0;
 
+ALTER TABLE orders
+DROP CONSTRAINT CK__orders__total_am__1DB06A4F
+
 UPDATE orders
 SET isReturned = 0
 
@@ -113,6 +116,9 @@ CREATE TABLE order_items (
     CONSTRAINT FK_order_items_product FOREIGN KEY (product_id)
         REFERENCES products(id)
 );
+
+ALTER TABLE order_items 
+DROP CONSTRAINT CK__order_ite__quant__2645B050
 
 
 

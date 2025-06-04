@@ -1,209 +1,262 @@
--- Test Customer Flow Execution Script
+--Customer Flow Execution 
 
--- 1. User Registration: CreateUser and CreateCustomer
+-- 1. User Registration: CreateUser as Customer
 EXEC sp_CreateUser  
-    @Name = 'Kavya Khandelwal', 
-    @Email = 'Kavyakhandelwal300@gmail.com', 
-    @Password = 'kavya123', 
-    @PhoneNumber = '7297643404', 
-    @Gender = 'Male', 
-    @DateOfBirth = '', 
+    @Name = 'Sumit Pareek', 
+    @Email = 'SumitPareek99@gmail.com', 
+    @Password = 'Sumit@123', 
+    @PhoneNumber = '7212331433', 
+    @Gender = 'Male',  
     @UserType = 'customer',
-    @Address = '123, vidhyadhar nagar, jaipur',
-    @PaymentDetails = 'harsh@paytm',
-    @PinCode = 302021,
-    @Age = 23;
+    @PaymentDetails = 'Sumit99@paytm',
+    @PinCode = 302012,
+    @Age = 35;
+GO
+
+
+EXEC sp_CreateUser  
+    @Name = 'Bhavin', 
+    @Email = 'Bhavin@gmail.com', 
+    @Password = 'Sumit@123', 
+    @PhoneNumber = '7212331433', 
+    @Gender = 'Male',  
+    @UserType = 'customer',
+    @PaymentDetails = 'Sumit99@paytm',
+    @PinCode = 302012,
+    @Age = 35;
+GO
+-- 2. User Authentication
+EXEC sp_AuthenticateUser  
+    @email_or_phone = 'SumitPareek99@gmail.com', 
+    @password = 'Sumit@123';
+GO
+
+-- 3. Update User Profile
+DECLARE @id VARCHAR(10) ;
+SELECT @id = MAX(id) FROM users
+EXEC sp_UpdateUserProfile  
+    @UserId = @id, 
+    @Name = 'Sumit Pareek', 
+	@DateOfBirth = '5-1-2000'
+GO
+
+-- 4. Reset Password
+DECLARE @id VARCHAR(10) ;
+SELECT @id = MAX(id) FROM users
+EXEC sp_ResetPassword @id,'Sumit@123','Sumit@1234'
+
+-- 5. Manage Addresses
+DECLARE @id VARCHAR(10);
+SELECT @id = MAX(id) FROM users
+EXEC sp_AddUserAddress  
+    @UserId = @id,
+    @AddressLine = 'jhotwara, jaipur',
+    @AddressType = 'Home',
+    @IsPrimary = 1;
 GO
 
 SELECT * FROM users;
 
-
-EXEC sp_depends @objname = 'Users'
-
--- Assuming the new user ID is 'USR1' (update as per your actual output)
-
-EXEC sp_CreateCustomer
-    @id = 1,  -- Adjust as per your customer ID generation logic
-    @userId = 'USR1',
-    @paymentDetails = 'Visa **** 1234',
-    @age = 33,
-    @address = '123 Maple Street',
-    @pinCode = 123456;
-GO
-
--- 2. User Authentication
-EXEC sp_AuthenticateUser  
-    @email_or_phone = 'Harshtodwal@gmail.com', 
-    @password = 'Harsh123';
-GO
-
--- 3. Update User Profile
-EXEC sp_UpdateUserProfile  
-    @Id = 'USR20', 
-    @Name = 'Harsh Todwal', 
-	@DateOfBirth = '1-1-2000'
-    
-GO
-
--- 4. Manage Addresses
-EXEC sp_AddUserAddress  
-    @UserId = 'USR20',
-    @AddressLine = 'kanakpura, jaipur',
-    @AddressType = 'Office',
-    @IsPrimary = 0;
-GO
-
+-- Fetch User Addresses
+DECLARE @id VARCHAR(10);
+SELECT @id = MAX(id) FROM users
 EXEC sp_GetUserAddresses  
-    @UserId = 'USR20';
+    @UserId = @id;
 GO
 
--- 5. Product Browsing (search - example with partial name)
+-- 6. Product Browsing 
 EXEC sp_SearchProducts  
-    @SearchTerm = 'Laptop';
+    @SearchTerm = 'Cricket Bat';
 GO
 
--- 6. Wishlist Management: Add and Remove
+-- 7. Wishlist Management: Add and Remove
+DECLARE @id VARCHAR(10) ;
+SELECT @id = MAX(id) FROM users
 EXEC sp_AddProductToWishlist  
-    @UserId = 'USR20',
-    @ProductId = 'PROD022';
+    @UserId = @id,
+    @ProductId = 'PROD25';
 GO
 
-SELECT * FROM wishlist;
 
+DECLARE @id VARCHAR(10) ;
+SELECT @id = MAX(id) FROM users
+SELECT * FROM wishlist WHERE user_id = @id;
+
+-- 8. CAN remove from wishlist
+DECLARE @id VARCHAR(10);
+SELECT @id = MAX(id) FROM users
 EXEC sp_RemoveFromWishlist  
-    @UserId = 'USR20',
-    @ProductId = 'PROD23';
+    @UserId = @id,
+    @ProductId = 'PROD25';
 GO
 
+--  9. Move Wishlist to cart
+DECLARE @id VARCHAR(10) ;
+SELECT @id = MAX(id) FROM users
+EXEC sp_MoveWishlistToCart @id
 
--- 7. Shopping Cart Management: Add, Update, Remove, Clear, and Move to Order
+-- 10. Shopping Cart Management: Add, Update, Remove, Clear, and Move to Order
+
+SELECT * FROM users;
+
+DECLARE @id VARCHAR(10);
+SELECT @id = MAX(id) FROM users
 EXEC sp_AddToCart  
-    @UserId = 'USR23',
-    @ProductId = 'PROD002', 
-    @Quantity = 2;
+    @UserId = @id,
+    @ProductId = 'PROD25', 
+    @Quantity = 1;
 GO
 
 SELECT * FROM products;
 
+DECLARE @id VARCHAR(10) ;
+SELECT @id = MAX(id) FROM users
 EXEC sp_UpdateCartQuantity  
-    @UserId = 'USR20',
-    @ProductId = 'PROD23', 
+    @UserId = @id,
+    @ProductId = 'PROD25', 
     @NewQuantity = 1;
 GO
 
-SELECT * FROM shopping_cart;
+DECLARE @id VARCHAR(10) ;
+SELECT @id = MAX(id) FROM users
+SELECT * FROM shopping_cart WHERE user_id = @id;
 
+
+DECLARE @id VARCHAR(10) ;
+SELECT @id = MAX(id) FROM users
 EXEC sp_RemoveFromCart  
-    @UserId = 'USR1',
-    @ProductId = 'PROD1002';
+    @UserId = @id,
+    @ProductId = 'PROD25';
 GO
 
+DECLARE @id VARCHAR(10) ;
+SELECT @id = MAX(id) FROM users
 EXEC sp_ClearCart  
-    @UserId = 'USR1';
+    @UserId = @id;
 GO
 
--- 8. Order Creation and Payment Processing
-EXEC sp_MoveCartToOrder  
-    @UserId = 'USR1';
-GO
+-- 11. get the cart summary
+DECLARE @id VARCHAR(10) ;
+SELECT @id = MAX(id) FROM users
+EXEC sp_GetCartDetailsAndSummary @id
 
+-- 12. Check coupons
 SELECT * FROM coupons;
 
+EXEC sp_GetAllAvailableCoupons
+
+-- 13. Create Order
+DECLARE @id VARCHAR(10);
+SELECT @id = MAX(id) FROM users
 EXEC sp_CreateOrder  
-    @UserId = 'USR23',
-    @CouponCode = 'SAVE20',
-    @PaymentMethod = 'UPI';
+    @UserId = @id,
+    @PaymentMethod = 'UPI',
+	@CouponCode = 'WEL50';
 GO
 
 SELECT * FROM payments;
 SELECT * FROM orders;
-SELECT * FROM order_items;
+
+DECLARE @id VARCHAR(10) ;
+SELECT @id = MAX(id) FROM orders
+SELECT * FROM order_items WHERE order_id = @id;
 
 
-SELECT * FROM sys.tables;
-EXEC sp_ProcessPayment  
-    @OrderId = 'ORD33',   -- Use actual order ID generated
-    @PaymentMethod = 'COD'
+-- 14. Create Shippment
+DECLARE @id VARCHAR(10) ;
+SELECT @id = MAX(id) FROM orders
+EXEC sp_CreateShipment  
+    @OrderId = @id,
+    @ShippingMethod = 'Delhivery', 
+    @TrackingNumber = 'TRACKORD';
 GO
 
--- 9. Order Management: Update Status and Cancel Order
+
+SELECT * FROM payments;
+
+-- Out for Delivery Status
+DECLARE @id VARCHAR(10) ;
+SELECT @id = MAX(id) FROM orders
 EXEC sp_UpdateOrderStatus  
-    @OrderId = 'ORD32',   -- Use actual order ID
-    @NewStatus = 'Shipped';
+    @OrderId = @id,   
+    @NewStatus = 'Out For Delivery';
 GO
 
+-- 16. Order Delivered
+DECLARE @id VARCHAR(10) ;
+SELECT @id = MAX(id) FROM orders
+EXEC sp_UpdateOrderStatus @id,'Delivered'
+
+
+SELECT * FROM shipping;
 SELECT *  FROM orders;
 SELECT * FROM payments;
 
+-- 17. Cancel the Order
+DECLARE @id VARCHAR(10) ;
+SELECT @id = MAX(id) FROM orders
 EXEC sp_CancelOrder  
-    @OrderId = 'ORD31';   -- Use actual order ID if needed
+    @OrderId = @id;   -- Use actual order ID if needed
 GO
 
+SELECT * FROM orders;
+SELECT * FROM order_items WHERE order_id = 'ORD'
+SELECT * FROM order_returns;
+
+
+-- 18. Return From the order
+EXEC sp_return_product_from_order @order_id = 'ORD',@product_id = 'PROD001', @quantity = 1,@reason = 'Defective Product';
+
+DECLARE @id VARCHAR(10) ;
+SELECT @id = MAX(id) FROM orders
+SELECT * FROM OrdersAndReturnSummary WHERE order_id = @id
+
+
+
+
+DECLARE @id VARCHAR(10) ;
+SELECT @id = MAX(id) FROM orders
+SELECT * FROM invoices WHERE order_id = @id;
+
+
+DECLARE @id VARCHAR(10) ;
+SELECT @id = MAX(id) FROM users
 EXEC sp_GetCustomerPurchaseHistory  
-    @UserId = 'USR20';
+    @UserId = @id;
 GO 
 
-SELECT * FROM user_event_log WHERE user_id = 'USR20'
+DECLARE @id VARCHAR(10) ;
+SELECT @id = MAX(id) FROM users
+SELECT * FROM user_event_log WHERE user_id = @id
 
 -- 10. Product Review Management: Add, Update, Delete
+DECLARE @id VARCHAR(10) ;
+SELECT @id = MAX(id) FROM users
 EXEC sp_AddProductReview  
-    @UserId = 'USR20',
-    @ProductId = 'PROD23',
+    @UserId = @id,
+    @ProductId = 'PROD',
     @Rating = 4,
-    @Comment = 'Good Book to read!! Everyone should read it';
+    @Comment = 'Great Product';
 GO
 
 SELECT * FROM reviews;
 SELECT * FROM orders;
 SELECT * FROM payments;
 
+
+DECLARE @id VARCHAR(10) ;
+SELECT @id = MAX(id) FROM users
 EXEC sp_UpdateProductReview  
-    @UserId = 'USR20',
+    @UserId = @id,
     @ProductId = 'PROD23',
     @Rating = 3,
     @Comment = 'Good product, but a bit expensive.';
 GO
 
+DECLARE @id VARCHAR(10) ;
+SELECT @id = MAX(id) FROM users
 EXEC sp_DeleteProductReview  
-    @UserId = 'USR1',
+    @UserId = @id,
     @ProductId = 'PROD1003';
 GO
 
--- 11. Coupon Management: Validate, Apply, Remove
-DECLARE @IsValid BIT,
-        @DiscountAmount DECIMAL(18,2),
-        @CouponId NVARCHAR(50),
-        @ErrorMessage NVARCHAR(255);
-
-EXEC sp_ValidateCoupon  
-    @CouponCode = 'WELCOME50',
-    @UserId = 'USR1',
-    @OrderAmount = 200.00,
-    @IsValid = @IsValid OUTPUT,
-    @DiscountAmount = @DiscountAmount OUTPUT,
-    @CouponId = @CouponId OUTPUT,
-    @ErrorMessage = @ErrorMessage OUTPUT;
-
-SELECT @IsValid AS IsValid, @DiscountAmount AS DiscountAmount, @CouponId AS CouponId, @ErrorMessage AS ErrorMessage;
-GO
-
-EXEC sp_ApplyCouponToOrder  
-    @OrderId = 'ORD1',
-    @CouponCode = 'DISCOUNT10';
-GO
-
-EXEC sp_RemoveCouponFromOrder  
-    @OrderId = 'ORD1';
-GO
-
--- 12. Shipping Management: Create and Update Shipment Status
-EXEC sp_CreateShipment  
-    @OrderId = 'ORD32',
-    @ShippingMethod = 'Standard Shipping', 
-    @TrackingNumber = 'TRACK123456';
-GO
-
-EXEC sp_UpdateShipmentStatus  
-    @OrderId = 'ORD31',
-    @NewStatus = 'Delivered';
-GO

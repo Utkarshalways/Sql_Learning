@@ -139,10 +139,10 @@ BEGIN
            @Password NOT LIKE '%[^a-zA-Z0-9]%'
 
 		    BEGIN
-
+			
             SET @ErrorMessage = 'Password must be at least 8 characters long, contain at least one uppercase letter, one lowercase letter, one digit, and one special character.';
 
-            THROW 50008, @ErrorMsg, 1;
+            THROW 50008, @ErrorMessage, 1;
 
         END
  
@@ -191,7 +191,7 @@ BEGIN
             @DateOfBirth,
             @UserType
         );
-
+	
         -- Address (user_addresses)
         IF @Address IS NOT NULL
         BEGIN
@@ -236,7 +236,7 @@ BEGIN
         IF @@TRANCOUNT > 0
             ROLLBACK TRANSACTION;
 
-        SET @ErrorMessage = ERROR_MESSAGE();
+        SET @ErrorMessage  = ERROR_MESSAGE();
         PRINT @ErrorMessage; -- You can also use THROW to re-throw the error
     END CATCH
 END;
@@ -610,264 +610,6 @@ GO
 EXEC sp_DeleteUser @id = 'USR017'
 
 
-
-
-
--- MAY be DELETE THEM LATER
-
--- =================================================================
--- sp_CreateCustomer - Create customer profile linked to user
--- =================================================================
-CREATE OR ALTER PROCEDURE sp_CreateCustomer
-    @UserId NVARCHAR(50),
-    @PaymentDetails NVARCHAR(1000) = NULL,
-    @Age INT = NULL,
-    @Address NVARCHAR(500) = NULL,
-    @PinCode INT = NULL
-AS
-BEGIN
-    SET NOCOUNT ON;
-    
-    -- Validate input parameters
-    IF @UserId IS NULL
-    BEGIN
-        RAISERROR('User ID cannot be null', 16, 1);
-        RETURN;
-    END
-    
-    -- Validate PinCode if provided
-    IF @PinCode IS NOT NULL AND @PinCode < 100000
-    BEGIN
-        RAISERROR('Pin code must be at least 6 digits', 16, 1);
-        RETURN;
-    END
-    
-    -- Begin transaction
-    BEGIN TRY
-        BEGIN TRANSACTION;
-        
-        -- Check if user exists and is of type 'customer'
-        DECLARE @UserType NVARCHAR(50);
-        SELECT @UserType = user_type FROM users WHERE id = @UserId;
-        
-        IF @UserType IS NULL
-        BEGIN
-            RAISERROR('User not found', 16, 1);
-            ROLLBACK TRANSACTION;
-            RETURN;
-        END
-        
-        IF @UserType != 'customer'
-        BEGIN
-            RAISERROR('User is not of type customer', 16, 1);
-            ROLLBACK TRANSACTION;
-            RETURN;
-        END
-        
-        -- Check if customer profile already exists
-        IF EXISTS (SELECT 1 FROM customers WHERE userId = @UserId)
-        BEGIN
-            RAISERROR('Customer profile already exists for this user', 16, 1);
-            ROLLBACK TRANSACTION;
-            RETURN;
-        END
-        
-        -- Generate new customer ID
-        DECLARE @NewCustomerId BIGINT;
-        SELECT @NewCustomerId = ISNULL(MAX(id), 0) + 1 FROM customers;
-        
-        -- Insert new customer profile
-        INSERT INTO customers (id, userId, paymentDetails, age, address, pinCode)
-        VALUES (@NewCustomerId, @UserId, @PaymentDetails, @Age, @Address, @PinCode);
-        
-        -- Create or update address if provided
-        IF @Address IS NOT NULL
-        BEGIN
-            -- Check if user already has a primary address
-            IF EXISTS (SELECT 1 FROM user_addresses WHERE user_id = @UserId AND is_primary = 1)
-            BEGIN
-                -- Update existing primary address
-                UPDATE user_addresses 
-                SET address_line = @Address, 
-                    address_type = 'Billing',
-                    modified_at = GETDATE()
-                WHERE user_id = @UserId AND is_primary = 1;
-            END
-            ELSE
-            BEGIN
-                -- Create new primary address
-                INSERT INTO user_addresses (user_id, address_line, address_type, is_primary, modified_at)
-                VALUES (@UserId, @Address, 'Billing', 1, GETDATE());
-            END
-        END
-        
-        -- Commit transaction
-        COMMIT TRANSACTION;
-        
-        -- Return success with customer details
-        SELECT 
-            c.id AS CustomerId, 
-            c.userId AS UserId, 
-            u.name AS UserName,
-            c.paymentDetails AS PaymentDetails,
-            c.age AS Age,
-            c.address AS Address,
-            c.pinCode AS PinCode,
-            'Customer profile created successfully' AS Message
-        FROM 
-            customers c
-            JOIN users u ON c.userId = u.id
-        WHERE 
-            c.id = @NewCustomerId;
-        
-    END TRY
-    BEGIN CATCH
-        -- Rollback transaction in case of error
-        IF @@TRANCOUNT > 0
-            ROLLBACK TRANSACTION;
-            
-        -- Return error information
-        DECLARE @ErrorMessage NVARCHAR(4000) = ERROR_MESSAGE();
-        DECLARE @ErrorSeverity INT = ERROR_SEVERITY();
-        DECLARE @ErrorState INT = ERROR_STATE();
-        
-        RAISERROR(@ErrorMessage, @ErrorSeverity, @ErrorState);
-    END CATCH
-END;
-GO
-
--- =================================================================
--- sp_CreateVendor - Create vendor profile linked to user
--- =================================================================
-CREATE OR ALTER PROCEDURE sp_CreateVendor
-    @UserId NVARCHAR(50),
-    @PaymentReceivingDetails NVARCHAR(1000) = NULL,
-    @Address NVARCHAR(500) = NULL,
-    @PinCode INT = NULL,
-    @GSTnumber NVARCHAR(50)
-AS
-BEGIN
-    SET NOCOUNT ON;
-    
-    -- Validate input parameters
-    IF @UserId IS NULL OR @GSTnumber IS NULL
-    BEGIN
-        RAISERROR('User ID and GST number are required', 16, 1);
-        RETURN;
-    END
-    
-    -- Validate PinCode if provided
-    IF @PinCode IS NOT NULL AND @PinCode < 100000
-    BEGIN
-        RAISERROR('Pin code must be at least 6 digits', 16, 1);
-        RETURN;
-    END
-    
-    -- Begin transaction
-    BEGIN TRY
-        BEGIN TRANSACTION;
-        
-        -- Check if user exists and is of type 'vendor'
-        DECLARE @UserType NVARCHAR(50);
-        SELECT @UserType = user_type FROM users WHERE id = @UserId;
-        
-        IF @UserType IS NULL
-        BEGIN
-            RAISERROR('User not found', 16, 1);
-            ROLLBACK TRANSACTION;
-            RETURN;
-        END
-        
-        IF @UserType != 'vendor'
-        BEGIN
-            RAISERROR('User is not of type vendor', 16, 1);
-            ROLLBACK TRANSACTION;
-            RETURN;
-        END
-        
-        -- Check if vendor profile already exists
-        IF EXISTS (SELECT 1 FROM vendors WHERE userId = @UserId)
-        BEGIN
-            RAISERROR('Vendor profile already exists for this user', 16, 1);
-            ROLLBACK TRANSACTION;
-            RETURN;
-        END
-        
-        -- Check if GST number is already in use
-        IF EXISTS (SELECT 1 FROM vendors WHERE GSTnumber = @GSTnumber)
-        BEGIN
-            RAISERROR('GST number is already registered with another vendor', 16, 1);
-            ROLLBACK TRANSACTION;
-            RETURN;
-        END
-        
-        -- Generate new vendor ID
-        DECLARE @NewVendorId BIGINT;
-        SELECT @NewVendorId = ISNULL(MAX(id), 0) + 1 FROM vendors;
-        
-        -- Insert new vendor profile
-        INSERT INTO vendors (id, userId, paymentReceivingDetails, address, pinCode, GSTnumber)
-        VALUES (@NewVendorId, @UserId, @PaymentReceivingDetails, @Address, @PinCode, @GSTnumber);
-        
-        -- Create or update address if provided
-        IF @Address IS NOT NULL
-        BEGIN
-            -- Check if user already has a primary address
-            IF EXISTS (SELECT 1 FROM user_addresses WHERE user_id = @UserId AND is_primary = 1)
-            BEGIN
-                -- Update existing primary address
-                UPDATE user_addresses 
-                SET address_line = @Address, 
-                    address_type = 'Business',
-                    modified_at = GETDATE()
-                WHERE user_id = @UserId AND is_primary = 1;
-            END
-            ELSE
-            BEGIN
-                -- Create new primary address
-                INSERT INTO user_addresses (user_id, address_line, address_type, is_primary, modified_at)
-                VALUES (@UserId, @Address, 'Business', 1, GETDATE());
-            END
-        END
-        
-        -- Commit transaction
-        COMMIT TRANSACTION;
-        
-        -- Return success with vendor details
-        SELECT 
-            v.id AS VendorId, 
-            v.userId AS UserId, 
-            u.name AS UserName,
-            v.paymentReceivingDetails AS PaymentReceivingDetails,
-            v.address AS Address,
-            v.pinCode AS PinCode,
-            v.GSTnumber AS GSTnumber,
-            'Vendor profile created successfully' AS Message
-        FROM 
-            vendors v
-            JOIN users u ON v.userId = u.id
-        WHERE 
-            v.id = @NewVendorId;
-        
-    END TRY
-    BEGIN CATCH
-        -- Rollback transaction in case of error
-        IF @@TRANCOUNT > 0
-            ROLLBACK TRANSACTION;
-            
-        -- Return error information
-        DECLARE @ErrorMessage NVARCHAR(4000) = ERROR_MESSAGE();
-        DECLARE @ErrorSeverity INT = ERROR_SEVERITY();
-        DECLARE @ErrorState INT = ERROR_STATE();
-        
-        RAISERROR(@ErrorMessage, @ErrorSeverity, @ErrorState);
-    END CATCH
-END;
-GO
-
-
-SELECT * FROM customers;
-SELECT * FROM vendors;
 -- =================================================================
 -- sp_AddUserAddress - Add a new address for a user
 -- =================================================================

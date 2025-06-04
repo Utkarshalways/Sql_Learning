@@ -102,3 +102,49 @@ SELECT TOP 5 * FROM products ORDER BY price DESC;
 SELECT product_id, AVG(rating) AS avg_rating
 FROM reviews
 GROUP BY product_id;
+
+
+SELECT * FROM sys.tables;
+
+
+
+SELECT product_id,COUNT(*) as total
+FROM wishlist 
+GROUP BY product_id
+ORDER BY total desc
+
+
+
+SELECT TOP 1 product_id, COUNT(*) AS added_times
+FROM shopping_cart
+GROUP BY product_id
+ORDER BY added_times DESC;
+
+
+SELECT * FROM sys.views;
+
+SELECT * FROM vw_TopCustomers;
+
+SELECT * FROM vw_productReview;
+
+SELECT * FROM vw_CategoryRevenue;
+
+
+SELECT * FROM vw_ProductRevenue
+
+
+SELECT * FROM vw_ActiveShoppingCarts;
+
+SELECT * FROM vw_CustomerDemographics;
+
+SELECT * FROM vw_GeographicalSales
+
+
+SELECT * FROM vw_VendorPerformance;
+
+
+SELECT * FROM vw_ProductsWithInventory;
+
+SELECT * FROM vw_LowStockProducts
+
+SELECT * FROM vw_ProductDetails;

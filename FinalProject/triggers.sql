@@ -551,5 +551,8 @@ BEGIN
     BEGIN
         THROW 50003, 'Circular reference detected in category hierarchy', 1;
     END
-END;
+END
 GO
+
+
+SELECT * FROM sys.triggers;

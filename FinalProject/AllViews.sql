@@ -458,11 +458,14 @@ FROM
     LEFT JOIN categories c ON p.category_id = c.id
     LEFT JOIN order_items oi ON p.id = oi.product_id
     LEFT JOIN orders o ON oi.order_id = o.id
+	LEFT JOIN payments as pay ON pay.order_id =  o.id
 WHERE 
-    o.payment_status = 'Completed'
+    pay.payment_status = 'Completed' OR pay.payment_status = 'Paid' 
 GROUP BY 
     p.id, p.name, c.name;
 GO
+
+SELECT * FROM orders;
 
 -- 5. Revenue by category
 CREATE OR ALTER VIEW vw_CategoryRevenue AS
@@ -481,12 +484,14 @@ FROM
     LEFT JOIN products p ON c.id = p.category_id
     LEFT JOIN order_items oi ON p.id = oi.product_id
     LEFT JOIN orders o ON oi.order_id = o.id
+	LEFT JOIN payments as pay ON o.id = pay.order_id
 WHERE 
-    o.payment_status = 'Completed' OR o.payment_status IS NULL
+    pay.payment_status= 'Completed' OR pay.payment_status= 'Paid' OR o.order_status IS NULL
 GROUP BY 
     c.id, c.name, parent.name;
 GO
 
+SELECT * FROM payments;
 -- =============================================
 -- CUSTOMER ENGAGEMENT VIEWS
 -- =============================================
@@ -621,7 +626,6 @@ GO
 -- 2. Customer demographic data
 CREATE OR ALTER VIEW vw_CustomerDemographics AS
 SELECT 
-    u.country,
     u.gender,
     FLOOR(DATEDIFF(YEAR, u.DateOfBirth, GETDATE()) / 10) * 10 AS age_group,
     COUNT(DISTINCT u.id) AS customer_count,
@@ -634,13 +638,12 @@ FROM
 WHERE 
     u.user_type = 'customer'
 GROUP BY 
-    u.country, u.gender, FLOOR(DATEDIFF(YEAR, u.DateOfBirth, GETDATE()) / 10) * 10;
+    u.gender, FLOOR(DATEDIFF(YEAR, u.DateOfBirth, GETDATE()) / 10) * 10;
 GO
 
 -- 3. Sales by country/region
 CREATE OR ALTER VIEW vw_GeographicalSales AS
 SELECT 
-    u.country,
     COUNT(DISTINCT u.id) AS customer_count,
     COUNT(DISTINCT o.id) AS order_count,
     SUM(o.total_amount) AS total_revenue,
@@ -649,7 +652,6 @@ SELECT
      INNER JOIN products p ON oi.product_id = p.id
      INNER JOIN orders o2 ON oi.order_id = o2.id
      INNER JOIN users u2 ON o2.user_id = u2.id
-     WHERE u2.country = u.country
      GROUP BY p.category_id
      ORDER BY COUNT(*) DESC) AS most_popular_category
 FROM 
@@ -657,8 +659,6 @@ FROM
     LEFT JOIN orders o ON u.id = o.user_id
 WHERE 
     u.user_type = 'customer'
-GROUP BY 
-    u.country;
 GO
 
 -- 4. Vendor sales performance

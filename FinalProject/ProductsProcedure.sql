@@ -211,6 +211,43 @@ SELECT * FROM orders WHERE user_id = 'USR018'
 SELECT * FROM inventory;
 sELECT * FROM products;
 
+
+CREATE OR ALTER PROCEDURE sp_GetCartDetailsAndSummary
+    @UserId NVARCHAR(50)
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    BEGIN TRY
+        -- 1. Return detailed cart items
+        SELECT 
+            p.id AS ProductId,
+            p.name AS ProductName,
+            p.price AS UnitPrice,
+            sc.quantity AS Quantity,
+            (p.price * sc.quantity) AS Subtotal
+        FROM shopping_cart sc
+        INNER JOIN products p ON sc.product_id = p.id
+        WHERE sc.user_id = @UserId;
+
+        -- 2. Return total summary
+        SELECT 
+            SUM(sc.quantity) AS TotalQuantity,
+            SUM(sc.quantity * p.price) AS TotalAmount
+        FROM shopping_cart sc
+        INNER JOIN products p ON sc.product_id = p.id
+        WHERE sc.user_id = @UserId;
+
+    END TRY
+    BEGIN CATCH
+        -- Handle errors
+        DECLARE @ErrorMessage NVARCHAR(4000) = ERROR_MESSAGE();
+        PRINT @ErrorMessage;
+    END CATCH
+END;
+GO
+
+
 -- 3. Cancel order with proper inventory adjustment
 CREATE OR ALTER PROCEDURE sp_CancelOrder
     @OrderId NVARCHAR(50)
@@ -237,7 +274,11 @@ BEGIN
                 updated_at = GETDATE()
             WHERE id = @OrderId;
 
-            -- Optional: You could log refund as a new entry in another table or track it elsewhere
+            UPDATE payments
+			SET 
+				payment_status = 'Refunded',
+				updated_at = GETDATE()
+				WHERE order_id = @OrderId
 
             -- Log the event
             INSERT INTO user_event_log (user_id, event_type, action_description)
@@ -302,14 +343,20 @@ BEGIN
         END
 
         -- If the order is shipped, mark the payment as completed
-        IF LOWER(@NewStatus) = 'shipped'
+        IF LOWER(@NewStatus) = 'delivered'
         BEGIN
             UPDATE payments
             SET 
-                payment_status = 'Completed',
+                payment_status = 'Paid',
                 updated_at = GETDATE()
             WHERE order_id = @OrderId;
+
+			UPDATE shipping
+			SET 
+			status = 'Delivered'
+			WHERE order_id = @OrderId
         END
+
 
         -- Log the event
         INSERT INTO user_event_log (user_id, event_type, action_description)
@@ -319,6 +366,8 @@ BEGIN
             'Order ' + @OrderId + ' status updated to ' + @NewStatus
         FROM orders
         WHERE id = @OrderId;
+
+		SELECT id,order_status,updated_at FROM orders WHERE id = @OrderId;
     END TRY
     BEGIN CATCH
         DECLARE @ErrorMessage NVARCHAR(4000) = ERROR_MESSAGE();
@@ -327,85 +376,6 @@ BEGIN
 END;
 GO
 
-
--- 4. Process payment for an order
-CREATE OR ALTER PROCEDURE sp_ProcessPayment
-    @OrderId NVARCHAR(50),
-    @PaymentMethod NVARCHAR(50),
-    @PaymentId NVARCHAR(50) OUTPUT
-AS
-BEGIN
-    SET NOCOUNT ON;
-    BEGIN TRY
-        BEGIN TRANSACTION;
-
-        -- Generate the new Payment ID
-        DECLARE @MaxPaymentId NVARCHAR(50);
-        DECLARE @NewPaymentNumber INT;
-
-        -- Get the maximum payment ID
-        SELECT @MaxPaymentId = MAX(id) FROM payments;
-
-        -- Extract the numeric part and increment it
-        IF @MaxPaymentId IS NOT NULL 
-        BEGIN
-            SET @NewPaymentNumber = CAST(SUBSTRING(@MaxPaymentId, 4, LEN(@MaxPaymentId) - 3) AS INT) + 1;
-        END
-        ELSE
-        BEGIN
-            SET @NewPaymentNumber = 1;  -- Start from 1 if no payments exist or format doesn't match
-        END
-
-       
-		DECLARE @paymentStatus VARCHAR(10);
-		SELECT @paymentStatus = payment_status FROM orders WHERE id = @OrderId
-		IF @paymentStatus <> 'Pending' 
-		BEGIN 
-				RAISERROR('Already PAID or Order do not exists',16,1)
-				RETURN
-		END
-		
-		 -- Format the new Payment ID with leading zeros up to 3 digits
-        SET @PaymentId = 'PAY' + CAST(@NewPaymentNumber AS NVARCHAR(20))
-
-		DECLARE @Amount DECIMAL(10,2);
-		SELECT @Amount = total_amount FROM orders WHERE id = @OrderId;
-        -- Insert the payment record
-        INSERT INTO payments (id, order_id, payment_method, amount, payment_date)
-        VALUES (@PaymentId, @OrderId, @PaymentMethod, @Amount, GETDATE());
-
-        -- Update the order's payment status
-        UPDATE orders
-        SET 
-            payment_status = 'Paid',
-            updated_at = GETDATE()
-        WHERE id = @OrderId;
-
-        -- Log the event
-        INSERT INTO user_event_log (user_id, event_type, action_description)
-        SELECT 
-            user_id, 
-            'PaymentProcessed', 
-            'Payment of ' + CAST(@Amount AS NVARCHAR(20)) + ' processed for order ' + @OrderId
-        FROM orders
-        WHERE id = @OrderId;
-
-
-		SELECT * FROM payments WHERE id = @PaymentId;
-
-        COMMIT TRANSACTION;
-		
-    END TRY
-    BEGIN CATCH
-        IF @@TRANCOUNT > 0
-            ROLLBACK TRANSACTION;
-
-        -- Log the error
-        DECLARE @ErrorMessage NVARCHAR(4000) = ERROR_MESSAGE();
-        PRINT @ErrorMessage
-    END CATCH;
-END;
-GO
 
 SELECT * FROM payments;
 
@@ -498,55 +468,6 @@ EXEC sp_CreateShipment @OrderId = 'ORD27',@ShippingMethod = 'Delhivery', @Tracki
 
 SELECT * FROM shipping;
 
--- 6. Update shipping status
-CREATE OR ALTER PROCEDURE sp_UpdateShipmentStatus
-    @OrderId NVARCHAR(50),
-    @NewStatus NVARCHAR(50)
-AS
-BEGIN
-    SET NOCOUNT ON;
-    BEGIN TRY
-        -- Update the shipping status
-        UPDATE shipping
-        SET status = @NewStatus
-        WHERE order_id = @OrderId;
-        
-        -- If delivered, update the order status as well
-        IF @NewStatus = 'Delivered'
-        BEGIN
-            UPDATE orders
-            SET 
-                order_status = 'Completed',
-                updated_at = GETDATE()
-            WHERE id = @OrderId;
-        END
-        
-        -- Log the event
-        INSERT INTO user_event_log (user_id, event_type, action_description)
-        SELECT 
-            user_id, 
-            'ShipmentStatusUpdate', 
-            'Shipping status for order ' + @OrderId + ' updated to ' + @NewStatus
-        FROM orders
-        WHERE id = @OrderId;
-    END TRY
-    BEGIN CATCH
-        -- Log the error
-        DECLARE @ErrorMessage NVARCHAR(4000) = ERROR_MESSAGE();
-        PRINT @ErrorMessage
-    END CATCH;
-END;
-GO
-
-
-EXEC sp_UpdateShipmentStatus 
-    @OrderId = 'ORD27',  
-    @NewStatus = 'Delivered'; 
-
-	SELECT * FROM Orders;
-
-
--- Additional useful procedures
 
 -- Inventory Management Procedure
 CREATE OR ALTER PROCEDURE sp_UpdateInventory
@@ -756,13 +677,16 @@ GO
 
 SELECT * FROM order_returns;
 
-CREATE PROCEDURE sp_return_product_from_order
+CREATE OR ALTER PROCEDURE sp_return_product_from_order
     @order_id NVARCHAR(50),
     @product_id NVARCHAR(50),
     @quantity INT,
     @reason NVARCHAR(255)
 AS
 BEGIN
+
+	BEGIN TRANSACTION 
+	BEGIN TRY
     SET NOCOUNT ON;
 
     DECLARE @ordered_qty INT;
@@ -833,6 +757,18 @@ BEGIN
 END
 
     PRINT 'Return processed successfully.';
+
+
+	COMMIT TRANSACTION
+	END TRY
+
+	BEGIN CATCH
+	IF @@TRANCOUNT > 0 
+			ROLLBACK TRANSACTION;
+			
+		DECLARE @ErrorMessage VARCHAR(200) = Error_Message();
+		PRINT @ErrorMessage
+	END CATCH
 END;
 
 
@@ -847,6 +783,8 @@ SELECT * FROM order_returns;
 
 
 
+CREATE OR ALTER VIEW OrdersAndReturnSummary 
+AS 
 SELECT 
     o.id AS order_id,
     o.user_id,
