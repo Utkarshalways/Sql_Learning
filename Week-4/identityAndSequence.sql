@@ -1,11 +1,6 @@
--- File: identity_sequence_examples.sql
-
--- =============================
--- SECTION 1: IDENTITY EXAMPLE
--- =============================
 
 -- Drop table if it already exists
-IF OBJECT_ID('dbo.IdentityExample', 'U') IS NOT NULL
+
     DROP TABLE dbo.IdentityExample;
 
 -- Create a table with IDENTITY column
@@ -82,6 +77,3 @@ SELECT * FROM dbo.Invoice;
 -- Restart sequence from specific number
 -- ALTER SEQUENCE dbo.seq_invoice_number RESTART WITH 2000;
 
--- =============================
--- End of Script
--- =============================

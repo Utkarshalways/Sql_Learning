@@ -95,3 +95,7 @@ SELECT * FROM AuditLog;
 -- Clean Up (Optional)
 -- DROP TABLE AuditLog, Employees_Deleted_Log, SecureTable, Employees;
 -- DROP TRIGGER trg_AfterDelete_Employees, trg_PreventDelete_SecureTable, trg_LogInsert;
+
+
+
+

@@ -16,7 +16,7 @@ GO
 
 EXEC sp_CreateUser  
     @Name = 'Bhavin', 
-    @Email = 'Bhavin@gmail.com', 
+    @Email = 'Bhavin@@gmail.com', 
     @Password = 'Sumit@123', 
     @PhoneNumber = '7212331433', 
     @Gender = 'Male',  
